@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -64,10 +63,15 @@
             font-size: 18px;
             cursor: pointer;
             transition: transform 0.2s;
+            margin: 10px;
         }
 
         .btn:hover {
             transform: translateY(-2px);
+        }
+
+        .btn.ai-mode {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         }
 
         .game-screen {
@@ -102,6 +106,10 @@
 
         .player.active {
             font-weight: bold;
+        }
+
+        .player.ai {
+            font-style: italic;
         }
 
         .player-color {
@@ -150,7 +158,8 @@
             width: 32px;
             height: 32px;
             background: white;
-            border: 1px solid #ccc;
+            border: 3px solid transparent;
+            box-sizing: border-box;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -161,63 +170,30 @@
 
         .cell:hover {
             background: #f0f0f0;
+            border-color: #ddd;
         }
 
         .cell.ground {
             background: #fef3c7;
-            border-bottom: 3px solid #d97706;
+            border-bottom-color: #d97706;
         }
 
         .cell.red {
             background: #ef4444;
             color: white;
+            border-color: #dc2626;
         }
 
         .cell.blue {
             background: #3b82f6;
             color: white;
+            border-color: #2563eb;
         }
 
         .cell.winning {
-            border: 3px solid #fbbf24;
+            border-color: #fbbf24;
             animation: winningBlink 1s infinite;
             box-shadow: 0 0 10px #fbbf24;
-        }
-
-        @keyframes winningBlink {
-            0%, 100% { 
-                border-color: #fbbf24;
-                box-shadow: 0 0 10px #fbbf24;
-            }
-            50% { 
-                border-color: #f59e0b;
-                box-shadow: 0 0 20px #f59e0b;
-            }
-        }
-
-        .winning-line {
-            position: absolute;
-            background: #fbbf24;
-            z-index: 5;
-            animation: lineGlow 2s infinite;
-        }
-
-        .winning-line.horizontal {
-            height: 4px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .winning-line.vertical {
-            width: 4px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .winning-line.diagonal {
-            height: 4px;
-            top: 50%;
-            transform-origin: left center;
         }
 
         .cell.dropping {
@@ -261,21 +237,6 @@
             margin: 0 auto 20px;
         }
 
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.5; }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-
-        @keyframes drop {
-            0% { transform: translateY(-20px); opacity: 0.7; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-
         .alert {
             position: fixed;
             top: 50%;
@@ -290,9 +251,37 @@
             animation: alertShow 0.3s ease-out;
         }
 
-        @keyframes alertShow {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        @keyframes winningBlink {
+            0%, 100% { 
+                border-color: #fbbf24;
+                box-shadow: 0 0 10px #fbbf24;
+            }
+            50% { 
+                border-color: #f59e0b;
+                box-shadow: 0 0 20px #f59e0b;
+            }
+        }
+
+        @keyframes drop {
+            0% { transform: translateY(-20px); opacity: 0.7; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes turnFlash {
+            0% { transform: scale(1); opacity: 1; }
+            30% { transform: scale(1.3); opacity: 0.8; }
+            60% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .player.flash {
+            animation: turnFlash 0.8s ease-out;
+            color: #fbbf24;
         }
 
         @media (max-width: 600px) {
@@ -312,6 +301,26 @@
                 gap: 20px;
             }
         }
+        .grid.turn-red {
+          border: 3px solid #ef4444;
+          animation: flash-red 1s;
+        }
+        .grid.turn-blue {
+          border: 3px solid #3b82f6;
+          animation: flash-blue 1s;
+        }
+
+        @keyframes flash-red {
+              0% { box-shadow: 0 0 0px #ef4444; }
+              50% { box-shadow: 0 0 20px #ef4444; }
+              100% { box-shadow: 0 0 0px #ef4444; }
+        }
+        
+        @keyframes flash-blue {
+              0% { box-shadow: 0 0 0px #3b82f6; }
+              50% { box-shadow: 0 0 20px #3b82f6; }
+              100% { box-shadow: 0 0 0px #3b82f6; }
+        }
     </style>
 </head>
 <body>
@@ -324,16 +333,29 @@
             <div class="rules">
                 <h3>📋 ゲームルール</h3>
                 <ul>
-                    <li>各プレイヤーは1ターンに2個のブロックを配置</li>
+                    <li>先行プレイヤーの色のブロックが中央に1個配置されます</li>
+                    <li>先行は初手で1個のみ配置可能</li>
+                    <li>2ターン目以降は各プレイヤーが1ターンに2個配置</li>
                     <li>縦・横・斜めのいずれかで5個連続に並べると勝利</li>
-                    <li>1階（地面）では隣接するブロックが必要（最初の1個を除く）</li>
+                    <li>1階（地面）では隣接するブロックが必要</li>
                     <li>2階以上では隣接制限なし</li>
                     <li>ブロックは重力で自動的に落下</li>
                     <li>制限時間内に配置しないと負け</li>
                 </ul>
             </div>
+
+            <div style="margin: 20px 0;">
+                <label style="font-weight: bold; color: #333;">🤖 AIの強さを選ぶ：</label><br>
+                <select id="aiLevelSelect" style="padding: 8px 16px; font-size: 16px; border-radius: 6px;">
+                    <option value="1">Lv1（ランダム）</option>
+                    <option value="2">Lv2（攻撃型）</option>
+                    <option value="3">Lv3（攻防型）</option>
+                    <option value="4">Lv4（高度AI）</option>
+                </select>
+            </div>
             
-            <button class="btn" onclick="startGame()">🎮 ゲーム開始</button>
+            <button class="btn" onclick="startGame(false)">👥 2人対戦</button>
+            <button class="btn ai-mode" onclick="startGame(true)">🤖 AIと対戦</button>
         </div>
 
         <!-- ゲーム画面 -->
@@ -342,7 +364,10 @@
             <div class="card">
                 <div class="game-header">
                     <h2>ドロップファイブ</h2>
-                    <button class="btn" onclick="showStart()">新しいゲーム</button>
+                    <div>
+                        <button class="btn" onclick="showStart()">新しいゲーム</button>
+                        <button class="btn" onclick="endGameNow()" style="background: #dc2626; margin-left: 10px;">ゲーム終了</button>
+                    </div>
                 </div>
             </div>
 
@@ -380,58 +405,76 @@
                 <h2 id="modalTitle">ゲーム終了</h2>
                 <div class="winner-icon" id="winnerIcon"></div>
                 <p id="modalMessage">結果メッセージ</p>
-                <button class="btn" onclick="startGame()">もう一度プレイ</button>
+                <button class="btn" onclick="startGame(false)">2人対戦</button>
+                <button class="btn ai-mode" onclick="startGame(true)">AIと対戦</button>
             </div>
         </div>
     </div>
 
     <script>
         // ゲーム設定
-        const GRID_WIDTH = 15;
-        const GRID_HEIGHT = 12;
-        const WIN_COUNT = 5;
-        const BLOCKS_PER_TURN = 2;
-        const INITIAL_TIME = 300; // 5分
+        var GRID_WIDTH = 15;
+        var GRID_HEIGHT = 12;
+        var WIN_COUNT = 5;
+        var BLOCKS_PER_TURN = 2;
+        var INITIAL_TIME = 300; // 5分
+        var aiLevel = 1; // デフォルトはLv1（ランダム）
 
         // ゲーム状態
         var game = {
             grid: [],
             currentPlayer: 1,
-            remainingBlocks: BLOCKS_PER_TURN,
+            remainingBlocks: 1, // 先行は初手1個のみ
             timeLeft: 30, // 初手は30秒
             gameActive: false,
             timer: null,
             animating: false,
             winningCells: [],
-            showingWin: false
+            showingWin: false,
+            turnCount: 0, // 初手かどうかの判定用
+            isAI: false // AIモードかどうか
         };
 
         // グリッド初期化
         function initGrid() {
             game.grid = [];
-            for (let row = 0; row < GRID_HEIGHT; row++) {
+            for (var row = 0; row < GRID_HEIGHT; row++) {
                 game.grid[row] = [];
-                for (let col = 0; col < GRID_WIDTH; col++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
                     game.grid[row][col] = 0;
                 }
             }
         }
 
         // ゲーム開始
-        function startGame() {
+        function startGame(isVsAI) {
+             resetFieldVisuals();
+          if (typeof isVsAI === 'undefined') {
+                isVsAI = false   
+          }
+                
+            // AIレベルを取得
+            var levelSelect = document.getElementById('aiLevelSelect');
+            aiLevel = levelSelect ? parseInt(levelSelect.value) : 1;
+                    
+            
             initGrid();
             game.currentPlayer = Math.random() > 0.5 ? 1 : 2;
             game.remainingBlocks = 1; // 先行は初手1個のみ
-            game.timeLeft = 30; // 初手は30秒
+            game.turnCount = 0; // 初手カウント
             game.gameActive = true;
             game.animating = false;
             game.winningCells = [];
             game.showingWin = false;
+            game.isAI = isVsAI; // AIモードを設定
 
             // 先行プレイヤーの色のブロックを真ん中の地面に設置
             var centerCol = Math.floor(GRID_WIDTH / 2);
             var groundRow = GRID_HEIGHT - 1;
             game.grid[groundRow][centerCol] = game.currentPlayer;
+
+            setTurnTimer(); // タイマーを最初に設定
+            startTimer();
 
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('gameScreen').style.display = 'block';
@@ -439,7 +482,10 @@
 
             createGrid();
             updateDisplay();
-            startTimer();
+            if (game.isAI && game.currentPlayer === 2) {
+                setTimeout(cpuPlay, 1500); // 初手がAIだったとき
+            }
+
         }
 
         // スタート画面表示
@@ -452,23 +498,33 @@
 
         // グリッド作成
         function createGrid() {
-            const gridElement = document.getElementById('gameGrid');
+            var gridElement = document.getElementById('gameGrid');
             gridElement.innerHTML = '';
-
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                for (let col = 0; col < GRID_WIDTH; col++) {
-                    const cell = document.createElement('div');
+        
+            // ⭐ ここを追加（列数に応じて横幅を再設定！）
+            gridElement.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
+        
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    var cell = document.createElement('div');
                     cell.className = 'cell';
-                    cell.onclick = () => placePiece(row, col);
-                    
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.onclick = function() {
+                        var clickedRow = parseInt(this.dataset.row);
+                        var clickedCol = parseInt(this.dataset.col);
+                        placePiece(clickedRow, clickedCol);
+                    };
+        
                     if (row === GRID_HEIGHT - 1) {
                         cell.classList.add('ground');
                     }
-                    
+        
                     gridElement.appendChild(cell);
                 }
             }
         }
+
 
         // 表示更新
         function updateDisplay() {
@@ -476,32 +532,63 @@
             document.getElementById('player1').classList.toggle('active', game.currentPlayer === 1);
             document.getElementById('player2').classList.toggle('active', game.currentPlayer === 2);
             
-            // 現在のプレイヤー
-            document.getElementById('currentPlayer').textContent = `プレイヤー${game.currentPlayer}`;
+            // AIモードの場合、プレイヤー2をAIとして表示
+            var player2Element = document.getElementById('player2');
+            if (game.isAI) {
+                player2Element.classList.add('ai');
+                player2Element.querySelector('span').textContent = 'AI';
+            } else {
+                player2Element.classList.remove('ai');
+                player2Element.querySelector('span').textContent = 'プレイヤー2';
+            }
             
-            // 残りブロック
+            // 現在のプレイヤー
+            var currentPlayerName = game.currentPlayer === 1 ? 'プレイヤー1' : (game.isAI ? 'AI' : 'プレイヤー2');
+            document.getElementById('currentPlayer').textContent = currentPlayerName;
+            
+            // 残りブロック表示
             document.getElementById('remainingBlocks').textContent = game.remainingBlocks;
+            var currentBlocks = countCurrentBlocks();
+            var maxBlocks = currentBlocks === 1 ? 1 : BLOCKS_PER_TURN; // 先行初手は1個、それ以外は2個
+            document.getElementById('maxBlocks').textContent = maxBlocks;
             
             // タイマー
-            const minutes = Math.floor(game.timeLeft / 60);
-            const seconds = game.timeLeft % 60;
-            const timerElement = document.getElementById('timer');
-            timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            var minutes = Math.floor(game.timeLeft / 60);
+            var seconds = game.timeLeft % 60;
+            var timerElement = document.getElementById('timer');
+            timerElement.textContent = minutes + ':' + seconds.toString().padStart(2, '0');
             timerElement.classList.toggle('warning', game.timeLeft <= 30);
 
             // グリッド更新
             updateGrid();
         }
+        ///ターン交代アニメーション
+        function applyTurnEffect() {
+            const grid = document.getElementById('gameGrid');
+            grid.classList.remove('turn-red', 'turn-blue'); // 前のクラスを削除
+        
+            if (game.currentPlayer === 1) {
+                grid.classList.add('turn-red');
+            } else if (game.currentPlayer === 2) {
+                grid.classList.add('turn-blue');
+            }
+        
+            // 1秒後にクラス削除（アニメーション終了）
+            setTimeout(() => {
+                grid.classList.remove('turn-red', 'turn-blue');
+            }, 1000);
+        }
+
 
         // グリッド表示更新
         function updateGrid() {
-            const cells = document.querySelectorAll('.cell');
-            let index = 0;
+            var cells = document.querySelectorAll('.cell');
+            var index = 0;
             
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                for (let col = 0; col < GRID_WIDTH; col++) {
-                    const cell = cells[index];
-                    const value = game.grid[row][col];
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    var cell = cells[index];
+                    var value = game.grid[row][col];
                     
                     cell.className = 'cell';
                     if (row === GRID_HEIGHT - 1) {
@@ -521,58 +608,17 @@
                     index++;
                 }
             }
-        }
-
-        // 勝利ライン描画を削除（枠の点滅のみ使用）
-        function drawWinningLine() {
-            // 枠の点滅のみ使用するため、ライン描画は無効化
-            return;
-        }
-        function placePiece(row, col) {
-            if (!game.gameActive || game.animating || game.remainingBlocks <= 0) {
-                return;
-            }
-
-            // 落下先を計算
-            var dropRow = calculateDrop(col);
-            if (dropRow === -1) return; // 列が満杯
-
-            // 地面レベルの隣接チェック
-            if (dropRow === GRID_HEIGHT - 1) {
-                if (!isValidGroundPlacement(col)) {
-                    return;
-                }
-            }
-
-            // アニメーション開始
-            game.animating = true;
-            var cells = document.querySelectorAll('.cell');
-            var cellIndex = dropRow * GRID_WIDTH + col;
-            var targetCell = cells[cellIndex];
             
-            targetCell.classList.add('dropping');
-            
-            setTimeout(function() {
-                // 現在のブロック数をカウント
-        function countCurrentBlocks() {
-            var count = 0;
-            for (var row = 0; row < GRID_HEIGHT; row++) {
-                for (var col = 0; col < GRID_WIDTH; col++) {
-                    if (game.grid[row][col] !== 0) {
-                        count++;
+            // 勝利ブロックを点滅表示
+            if (game.winningCells.length > 0) {
+                for (var w = 0; w < game.winningCells.length; w++) {
+                    var r = game.winningCells[w][0];
+                    var c = game.winningCells[w][1];
+                    var idx = r * GRID_WIDTH + c;
+                    if (cells[idx]) {
+                        cells[idx].classList.add('winning');
                     }
                 }
-            }
-            return count;
-        }
-
-        // ターン開始時のタイマー設定
-        function setTurnTimer() {
-            var currentBlocks = countCurrentBlocks();
-            if (currentBlocks === 1) {
-                game.timeLeft = 30; // 先行の初手後（既に中央に1個ある）は30秒
-            } else {
-                game.timeLeft = currentBlocks * 10; // 既存ブロック数×10秒
             }
         }
 
@@ -593,55 +639,446 @@
             }, 2000);
         }
 
-        // ピース配置の検証（修正版）
-        function canPlacePiece(targetRow, targetCol) {
-            // 列が満杯かチェック
-            if (game.grid[0][targetCol] !== 0) {
-                return { valid: false, message: "この列は満杯です" };
-            }
-            
-            // 実際の落下先を計算
-            var actualDropRow = calculateDrop(targetCol);
-            if (actualDropRow === -1 || game.grid[actualDropRow][targetCol] !== 0) {
-                return { valid: false, message: "その場所には既にブロックがあります" };
-            }
-            
-            // 地面レベルの隣接チェック
-            if (actualDropRow === GRID_HEIGHT - 1) {
-                if (!isValidGroundPlacement(targetCol)) {
-                    return { valid: false, message: "地面レベルでは隣接するブロックが必要です" };
+        // 現在のブロック数をカウント
+        function countCurrentBlocks() {
+            var count = 0;
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) {
+                        count++;
+                    }
                 }
             }
-            
-            return { valid: true, dropRow: actualDropRow };
+            return count;
         }
-                game.grid[dropRow][col] = game.currentPlayer;
-                game.remainingBlocks--;
+        function resetFieldVisuals() {
+            const grid = document.getElementById('gameGrid');
+            grid.classList.remove('turn-red', 'turn-blue');
+            grid.style.border = 'none';
+            grid.style.boxShadow = 'none';
+        }
+
+
+        // ターン開始時のタイマー設定
+        function setTurnTimer() {
+            var currentBlocks = countCurrentBlocks();
+            
+            if (game.turnCount === 0) {
+                // 先行初手
+                game.timeLeft = 15;
+            } else if (game.turnCount === 1 && currentBlocks === 2) {
+                // 後攻初手（ブロック数2個：中央＋先行1個）
+                game.timeLeft = 30;
+            } else {
+                // 2ターン目以降
+                game.timeLeft = currentBlocks * 10;
+            }
+        }
+      
+      function startTimer() {
+          clearInterval(game.timer);
+          game.timer = setInterval(function() {
+            game.timeLeft--;
+            updateDisplay();
+            if (game.timeLeft <= 0) {
+              clearInterval(game.timer);
+              endGame(game.currentPlayer === 1 ? 2 : 1); // タイムアウトで負け
+            }
+          }, 1000);
+      }
+        
+
+    //マス拡大
+        function extendGrid(direction) {
+            if (direction === 'right') {
+                for (let row = 0; row < GRID_HEIGHT; row++) {
+                    game.grid[row].push(0);
+                }
+                GRID_WIDTH++;
+            } else if (direction === 'left') {
+                for (let row = 0; row < GRID_HEIGHT; row++) {
+                    game.grid[row].unshift(0);
+                }
+                GRID_WIDTH++;
+            } else if (direction === 'top') {
+                const newRow = new Array(GRID_WIDTH).fill(0);
+                game.grid.unshift(newRow);
+                GRID_HEIGHT++;
+            }
+        
+            createGrid();
+            updateGridTemplate(); // ← 必須！
+            updateDisplay();
+        }
+
+
+        function checkAndExtendGrid() {
+            for (let row = 0; row < GRID_HEIGHT; row++) {
+                if (game.grid[row][0] !== 0) {
+                    extendGrid('left');
+                    break;
+                }
+            }
+        
+            for (let row = 0; row < GRID_HEIGHT; row++) {
+                if (game.grid[row][GRID_WIDTH - 1] !== 0) {
+                    extendGrid('right');
+                    break;
+                }
+            }
+        
+            for (let col = 0; col < GRID_WIDTH; col++) {
+                if (game.grid[0][col] !== 0) {
+                    extendGrid('top');
+                    break;
+                }
+            }
+        }
+
+        function updateGridTemplate() {
+            const grid = document.getElementById('gameGrid');
+            grid.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
+        }
+
+        
+
+        // ピース配置（新仕様：クリックした位置に配置を試みる）
+       f// ===== ステップ4: 元のplacePiece関数の最初に追加してください =====
+
+        function placePiece(row, col) {
+            // エラー対策: try-catchでエラーをキャッチ
+            try {
+                // === 元の処理の前に境界チェックを追加 ===
                 
-                // 勝利チェック
-                if (checkWin(dropRow, col)) {
-                    game.showingWin = true;
-                    showWinAnimation(function() {
-                        endGame(game.currentPlayer);
-                    });
+                // 1. 位置が範囲内にあるかチェック
+                if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
+                    console.warn(`無効な位置です: (${row}, ${col})`);
                     return;
                 }
                 
-                // ターン終了チェック
-                if (game.remainingBlocks <= 0) {
-                    setTimeout(function() {
-                        game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
-                        game.remainingBlocks = BLOCKS_PER_TURN; // 通常は2個
-                        setTurnTimer(); // 新しいターンのタイマー設定
-                        startTimer(); // タイマー再開
-                        updateDisplay();
-                    }, 500); // ターン交代の演出ディレイ
+                // 2. ゲームが進行中かチェック
+                if (!game.gameActive || game.animating || game.remainingBlocks <= 0) {
+                    return;
                 }
                 
-                game.animating = false;
-                updateDisplay();
-            }, 500);
+                // 3. AIのターン中に人間がクリックした場合は無視
+                if (game.isAI && game.currentPlayer === 2) {
+                    return;
+                }
+                
+                // === ここから元のplacePiece関数の処理を続ける ===
+                
+                // マスが既に埋まっているかチェック
+                if (game.grid[row][col] !== 0) {
+                    if (!game.isAI || game.currentPlayer !== 2) {
+                        showAlert("そのマスには既にブロックがあります！");
+                    }
+                    return;
+                }
+                
+                // 下に支えがあるかチェック（地面以外の場合）
+                if (row < GRID_HEIGHT - 1 && game.grid[row + 1][col] === 0) {
+                    if (!game.isAI || game.currentPlayer !== 2) {
+                        showAlert("この位置には下に支えがありません！");
+                    }
+                    return;
+                }
+                
+                // 地面の場合は隣接ブロックが必要
+                if (row === GRID_HEIGHT - 1 && !isValidGroundPlacement(col)) {
+                    if (!game.isAI || game.currentPlayer !== 2) {
+                        showAlert("地面に置くには隣接ブロックが必要です！");
+                    }
+                    return;
+                }
+                
+                // === ここから実際にブロックを置く処理 ===
+                
+                game.animating = true; // アニメーション中フラグをON
+                
+                // 対象のマスを取得
+                var cells = document.querySelectorAll('.cell');
+                var cellIndex = row * GRID_WIDTH + col;
+                var targetCell = cells[cellIndex];
+                
+                // アニメーション効果を追加
+                if (targetCell) {
+                    targetCell.classList.add('dropping');
+                }
+                
+                // 0.3秒後にブロックを実際に配置
+                setTimeout(function () {
+                    game.grid[row][col] = game.currentPlayer; // グリッドにブロックを記録
+                    game.remainingBlocks--; // 残りブロック数を減らす
+                    
+                    // 勝利判定
+                    if (checkWin(row, col)) {
+                        game.showingWin = true;
+                        showWinAnimation(function () {
+                            endGame(game.currentPlayer);
+                        });
+                        return;
+                    }
+                    
+                    // このターンのブロックを全て置き終わった場合
+                    if (game.remainingBlocks <= 0) {
+                        setTimeout(function () {
+                            clearInterval(game.timer); // タイマーを停止
+                            
+                            // ターンを交代
+                            game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
+                            game.remainingBlocks = BLOCKS_PER_TURN;
+                            game.turnCount++;
+                            
+                            // 新しいターンのタイマーを開始
+                            setTurnTimer();
+                            startTimer();
+                            applyTurnEffect();
+                            updateDisplay();
+                            
+                            // AIのターンになった場合
+                            if (game.isAI && game.currentPlayer === 2) {
+                                setTimeout(cpuPlay, 800);
+                            }
+                        }, 500);
+                    }
+                    
+                    game.animating = false; // アニメーション終了
+                    updateDisplay(); // 画面を更新
+                    checkAndExtendGrid(); // 必要に応じてグリッドを拡張
+                    
+                }, 300);
+                
+            } catch (error) {
+                // エラーが発生した場合の処理
+                console.error("ブロック配置でエラーが発生しました:", error);
+                game.animating = false; // アニメーションフラグをリセット
+                showAlert("エラーが発生しました。もう一度お試しください。");
+            }
         }
+
+
+////////////////////////AI関連
+        
+            // 1. ランダムな手を選ぶ関数
+            function getRandomMove() {
+                // 全ての有効な位置を取得
+                const validMoves = getAllValidMoves();
+                
+                // 有効な位置がない場合はnullを返す
+                if (validMoves.length === 0) return null;
+                
+                // ランダムに1つ選ぶ
+                const randomIndex = Math.floor(Math.random() * validMoves.length);
+                return validMoves[randomIndex];
+            }
+            
+            // 2. getRandomValidMoveという名前でも同じ機能を提供
+            function getRandomValidMove() {
+                return getRandomMove(); // 上の関数と同じ
+            }
+            
+            // 3. プレイヤーにとって最良の手を探す関数
+            function findBestMoveForPlayer(player) {
+                // まず勝てる手があるか確認
+                const winMove = findWinningMove(player);
+                if (winMove) return winMove; // 勝てるならその手を返す
+                
+                // 勝てない場合、相手の勝利を防ぐ手があるか確認
+                const opponent = player === 1 ? 2 : 1; // 相手のプレイヤー番号
+                const blockMove = findWinningMove(opponent);
+                if (blockMove) return blockMove; // 相手の勝利を防げるならその手を返す
+                
+                // どちらでもない場合はnullを返す
+                return null;
+            }
+        
+        // AI（CPU）のプレイ関数
+           function cpuPlay() {
+            // ゲームが終了していたり、AIのターンでない場合は何もしない
+            if (!game.gameActive || game.currentPlayer !== 2 || !game.isAI || game.showingWin) {
+                return;
+            }
+            
+            // ブロックが残っていない場合は、新しいターン用にブロック数をリセット
+            if (game.remainingBlocks <= 0) {
+                game.remainingBlocks = BLOCKS_PER_TURN;
+            }
+            
+            let placed = 0; // 今のターンで置いたブロック数
+            const maxBlocks = game.remainingBlocks; // このターンで置けるブロック数
+            
+            // 1つずつブロックを置く関数
+            function placeOneBlock() {
+                // 全部置き終わったか、ゲームが終了した場合は停止
+                if (placed >= maxBlocks || !game.gameActive || game.currentPlayer !== 2) {
+                    return;
+                }
+                
+                let chosenMove = null; // AIが選んだ手
+                
+                // AIのレベルに応じて異なる戦略を使う
+                if (aiLevel === 1) {
+                    // レベル1: 完全ランダム
+                    chosenMove = getRandomMove();
+                } else if (aiLevel === 2) {
+                    // レベル2: 勝てる手があれば選ぶ、なければランダム
+                    chosenMove = findWinningMove(2) || getRandomMove();
+                } else if (aiLevel === 3) {
+                    // レベル3: 攻撃と防御を考える
+                    chosenMove = cpuPlayLevel3Move();
+                } else if (aiLevel === 4) {
+                    // レベル4: より高度な戦略
+                    chosenMove = cpuPlayLevel4Move();
+                } else {
+                    // 不明なレベルの場合はランダム
+                    chosenMove = getRandomMove();
+                }
+                
+                // 選んだ手が有効な場合のみ実行
+                if (chosenMove) {
+                    placePiece(chosenMove[0], chosenMove[1]); // ブロックを置く
+                    placed++; // 置いたブロック数を増やす
+                    
+                    // 0.5秒後に次のブロックを置く（人間が見やすくするため）
+                    setTimeout(placeOneBlock, 500);
+                } else {
+                    // 有効な手がない場合（通常は起こらない）
+                    console.warn("AIが有効な手を見つけられませんでした");
+                }
+            }
+            
+            // ブロック配置を開始
+            placeOneBlock();
+        }
+        function getAllValidMoves() {
+            const validMoves = [];
+            for (let row = 0; row < GRID_HEIGHT; row++) {
+                for (let col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) continue;
+                    const hasSupport = (row === GRID_HEIGHT - 1) || (game.grid[row + 1][col] !== 0);
+                    const valid = (row !== GRID_HEIGHT - 1) || isValidGroundPlacement(col);
+                    if (hasSupport && valid) {
+                        validMoves.push([row, col]);
+                    }
+                }
+            }
+            return validMoves;
+        }
+
+
+
+        //CPUレベル2
+                function findWinningMove(player) {
+            const directions = [
+                [0, 1],  // 横
+                [1, 0],  // 縦
+                [1, 1],  // 斜め右下
+                [1, -1]  // 斜め左下
+            ];
+        
+            for (let row = 0; row < GRID_HEIGHT; row++) {
+                for (let col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) continue;
+        
+                    const hasSupport = (row === GRID_HEIGHT - 1) || (game.grid[row + 1][col] !== 0);
+                    const valid = (row !== GRID_HEIGHT - 1) || isValidGroundPlacement(col);
+                    if (!hasSupport || !valid) continue;
+        
+                    // 仮に置いてみる
+                    game.grid[row][col] = player;
+                    const win = checkWin(row, col);
+                    game.grid[row][col] = 0; // 元に戻す
+        
+                    if (win) return [row, col];
+                }
+            }
+        
+            return null;
+        }
+        
+                function evaluateMove(grid, row, col, player) {
+            let score = 0;
+            const directions = [
+                [0, 1],  [1, 0],  [1, 1],  [1, -1]
+            ];
+        
+            for (let [dr, dc] of directions) {
+                let count = 1;
+        
+                // 正方向
+                for (let i = 1; i < 5; i++) {
+                    const r = row + dr * i;
+                    const c = col + dc * i;
+                    if (grid[r] && grid[r][c] === player) count++;
+                    else break;
+                }
+        
+                // 負方向
+                for (let i = 1; i < 5; i++) {
+                    const r = row - dr * i;
+                    const c = col - dc * i;
+                    if (grid[r] && grid[r][c] === player) count++;
+                    else break;
+                }
+        
+                // 得点加算（連続数に応じて）
+                if (count >= 5) score += 10000;
+                else score += count * count; // 例：3連=9点
+            }
+        
+            return score;
+        }
+        
+              function cpuPlayLevel3Move() {
+            // 1. まず自分（AI）が勝てる手があるか確認
+            const winMove = findBestMoveForPlayer(2); // 2はAIの番号
+            if (winMove) return winMove;
+            
+            // 2. 勝てない場合、相手の勝利を防ぐ手があるか確認
+            const blockMove = findBestMoveForPlayer(1); // 1は人間プレイヤーの番号
+            if (blockMove) return blockMove;
+            
+            // 3. どちらでもない場合はランダムに選ぶ
+            return getRandomMove();
+        }
+        
+        // cpuPlayLevel4Move関数も同様に修正
+        function cpuPlayLevel4Move() {
+            // レベル4では少し賢く、複数の手を比較する
+            const validMoves = getAllValidMoves();
+            if (validMoves.length === 0) return null;
+            
+            let bestMove = null;
+            let bestScore = -999999; // とても小さい数から始める
+            
+            // 全ての可能な手を試して、一番良い手を選ぶ
+            for (let i = 0; i < validMoves.length; i++) {
+                const move = validMoves[i];
+                const row = move[0];
+                const col = move[1];
+                
+                // この位置に置いた時の点数を計算
+                game.grid[row][col] = 2; // 仮に置いてみる
+                let score = evaluateMove(game.grid, row, col, 2);
+                game.grid[row][col] = 0; // 元に戻す
+                
+                // より高い点数なら、その手を記録
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            }
+            
+            return bestMove;
+        }
+    ///LEVEL5
+        function cpuPlayLevel5Move() {
+            return cpuPlayLevel3Move(); // とりあえず同じロジック
+        }
+
+
+
 
         // 落下位置計算
         function calculateDrop(col) {
@@ -654,31 +1091,29 @@
         }
 
         // 地面レベルの配置チェック
-        function isValidGroundPlacement(col) {
-            // 初回は制限なし
-            var hasAnyPiece = false;
-            for (var r = 0; r < GRID_HEIGHT; r++) {
-                for (var c = 0; c < GRID_WIDTH; c++) {
-                    if (game.grid[r][c] !== 0) {
-                        hasAnyPiece = true;
-                        break;
-                    }
-                }
-                if (hasAnyPiece) break;
-            }
-            
-            if (!hasAnyPiece) return true;
-
-            // 隣接チェック
-            var groundRow = GRID_HEIGHT - 1;
-            var leftCol = col - 1;
-            var rightCol = col + 1;
-            
-            if (leftCol >= 0 && game.grid[groundRow][leftCol] !== 0) return true;
-            if (rightCol < GRID_WIDTH && game.grid[groundRow][rightCol] !== 0) return true;
-            
+        function isValidGroundPlacementAt(row, col) {
+            if (row !== GRID_HEIGHT - 1) return true; // 地面以外はOK
+        
+            // 地面の場合、隣接ブロックが必要
+            var left = col - 1;
+            var right = col + 1;
+        
+            if (left >= 0 && game.grid[row][left] !== 0) return true;
+            if (right < GRID_WIDTH && game.grid[row][right] !== 0) return true;
+        
             return false;
         }
+
+        function isValidGroundPlacement(col) {
+            const row = GRID_HEIGHT - 1;
+            const left = col - 1;
+            const right = col + 1;
+            return (left >= 0 && game.grid[row][left] !== 0) || 
+                   (right < GRID_WIDTH && game.grid[row][right] !== 0);
+        }
+
+
+
 
         // 勝利チェック（改良版 - 連続するすべてのセルを記録）
         function checkWin(row, col) {
@@ -728,64 +1163,58 @@
             return false;
         }
 
-        // 勝利アニメーション（15秒間）
+        // 勝利アニメーション（10秒後に点滅終了、その後ゲーム終了）
         function showWinAnimation(callback) {
             updateDisplay(); // 点滅表示を反映
             
-            // 15秒間アニメーションを見せた後に終了処理
+            // 10秒後に点滅クラスを解除
             setTimeout(function() {
-                callback(); // endGame()
-            }, 15000);
+                var cells = document.querySelectorAll('.cell');
+                for (var w = 0; w < game.winningCells.length; w++) {
+                    var r = game.winningCells[w][0];
+                    var c = game.winningCells[w][1];
+                    var idx = r * GRID_WIDTH + c;
+                     if (cells[idx]) {
+            cells[idx].classList.remove('winning');
+          }
         }
 
-        // タイマー開始
-        function startTimer() {
-            clearInterval(game.timer);
-            game.timer = setInterval(function() {
-                if (!game.gameActive || game.showingWin) return;
-                
-                game.timeLeft--;
-                updateDisplay();
-                
-                if (game.timeLeft <= 0) {
-                    var winner = game.currentPlayer === 1 ? 2 : 1;
-                    endGame(winner, '時間切れ');
-                }
-            }, 1000);
-        }
+        // 勝利表示を出してゲーム終了
+        endGame(game.currentPlayer);
+        if (typeof callback === 'function') callback();
+      }, 10000); // 10秒（10000ミリ秒）
+    }
 
-        // ゲーム終了
-        function endGame(winner, reason) {
-            reason = reason || '';
-            game.gameActive = false;
-            clearInterval(game.timer);
-            
-            var modal = document.getElementById('gameModal');
-            var title = document.getElementById('modalTitle');
-            var icon = document.getElementById('winnerIcon');
-            var message = document.getElementById('modalMessage');
-            
-            title.textContent = 'プレイヤー' + winner + 'の勝利！';
-            icon.className = 'winner-icon ' + (winner === 1 ? 'red' : 'blue');
-            message.textContent = reason || (winner === 1 ? '赤' : '青') + 'プレイヤーの勝利です！';
-            
-            modal.style.display = 'block';
-        }
+    function endGame(winner) {
+      game.gameActive = false;
+      clearInterval(game.timer);
+      resetFieldVisuals();
 
-        // ゲーム強制終了
-        function endGameNow() {
-            if (!game.gameActive) return;
-            
-            if (confirm('ゲームを終了しますか？')) {
-                game.gameActive = false;
-                clearInterval(game.timer);
-                showStart();
-            }
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            showStart();
-        });
-    </script>
+      var modal = document.getElementById('gameModal');
+      var message = document.getElementById('modalMessage');
+      var title = document.getElementById('modalTitle');
+      var icon = document.getElementById('winnerIcon');
+
+      if (winner === 1) {
+        title.textContent = '🎉 プレイヤー1の勝利！';
+        icon.style.background = '#ef4444';
+      } else if (winner === 2) {
+        title.textContent = game.isAI ? '🤖 AIの勝利！' : '🎉 プレイヤー2の勝利！';
+        icon.style.background = '#3b82f6';
+      } else {
+        title.textContent = '引き分け';
+        icon.style.background = '#ccc';
+      }
+
+      message.textContent = 'ゲームが終了しました。再戦しますか？';
+      modal.style.display = 'block';
+    }
+
+    function endGameNow() {
+      endGame(0); // 引き分けとして処理
+      resetFieldVisuals();
+    }
+
+  </script>
 </body>
 </html>
-
