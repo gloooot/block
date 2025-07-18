@@ -284,6 +284,11 @@
             color: #fbbf24;
         }
 
+        @keyframes alertShow {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
         @media (max-width: 600px) {
             .grid {
                 grid-template-columns: repeat(15, 20px);
@@ -300,26 +305,6 @@
             .players {
                 gap: 20px;
             }
-        }
-        .grid.turn-red {
-          border: 3px solid #ef4444;
-          animation: flash-red 1s;
-        }
-        .grid.turn-blue {
-          border: 3px solid #3b82f6;
-          animation: flash-blue 1s;
-        }
-
-        @keyframes flash-red {
-              0% { box-shadow: 0 0 0px #ef4444; }
-              50% { box-shadow: 0 0 20px #ef4444; }
-              100% { box-shadow: 0 0 0px #ef4444; }
-        }
-        
-        @keyframes flash-blue {
-              0% { box-shadow: 0 0 0px #3b82f6; }
-              50% { box-shadow: 0 0 20px #3b82f6; }
-              100% { box-shadow: 0 0 0px #3b82f6; }
         }
     </style>
 </head>
@@ -351,6 +336,8 @@
                     <option value="2">Lv2（攻撃型）</option>
                     <option value="3">Lv3（攻防型）</option>
                     <option value="4">Lv4（高度AI）</option>
+                    <option value="5">Lv5（ミニマックス - 破壊的強さ）</option>
+                    <option value="6">Lv6（学習型AI - あなた専用）</option>
                 </select>
             </div>
             
@@ -389,6 +376,7 @@
                 <div class="game-info">
                     <div>現在のターン: <span id="currentPlayer">プレイヤー1</span></div>
                     <div>残りブロック: <span id="remainingBlocks">1</span>/<span id="maxBlocks">1</span></div>
+                    <div id="aiStats" style="color: #8b5cf6; font-weight: bold;"></div>
                 </div>
             </div>
 
@@ -411,28 +399,31 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
     <script>
         // ゲーム設定
         var GRID_WIDTH = 15;
         var GRID_HEIGHT = 12;
         var WIN_COUNT = 5;
         var BLOCKS_PER_TURN = 2;
-        var INITIAL_TIME = 300; // 5分
-        var aiLevel = 1; // デフォルトはLv1（ランダム）
+        var aiLevel = 1;
 
         // ゲーム状態
         var game = {
             grid: [],
             currentPlayer: 1,
-            remainingBlocks: 1, // 先行は初手1個のみ
-            timeLeft: 30, // 初手は30秒
+            firstPlayer: 1,
+            aiPlayer: null,
+            remainingBlocks: 1,
+            timeLeft: 30,
             gameActive: false,
             timer: null,
             animating: false,
             winningCells: [],
             showingWin: false,
-            turnCount: 0, // 初手かどうかの判定用
-            isAI: false // AIモードかどうか
+            turnCount: 0,
+            isAI: false,
+            aiThinking: false
         };
 
         // グリッド初期化
@@ -446,51 +437,99 @@
             }
         }
 
-        // ゲーム開始
+        // 勝利ラインを表示する関数
+        function showWinningCells() {
+            // 実際の勝利時のみ呼ばれるため、特別な処理は不要
+            // updateGrid()で勝利セルが自動的に表示される
+            console.log("勝利ライン表示:", game.winningCells);
+        }
+
+        // 勝利ラインをクリアする関数
+        function clearWinningCells() {
+            game.winningCells = [];
+            console.log("勝利ラインクリア");
+        }
+
+        // ★修正版★ ゲーム開始関数
         function startGame(isVsAI) {
-             resetFieldVisuals();
-          if (typeof isVsAI === 'undefined') {
-                isVsAI = false   
-          }
-                
-            // AIレベルを取得
+            if (typeof isVsAI === 'undefined') {
+                isVsAI = false;
+            }
+            
+            // AIレベル取得
             var levelSelect = document.getElementById('aiLevelSelect');
             aiLevel = levelSelect ? parseInt(levelSelect.value) : 1;
-                    
-            
+
+            // 初期化
             initGrid();
-            game.currentPlayer = Math.random() > 0.5 ? 1 : 2;
-            game.remainingBlocks = 1; // 先行は初手1個のみ
-            game.turnCount = 0; // 初手カウント
+            game.firstPlayer = Math.random() > 0.5 ? 1 : 2;
+            game.currentPlayer = game.firstPlayer;
+            
+            if (isVsAI) {
+                game.aiPlayer = Math.random() > 0.5 ? 1 : 2;
+            } else {
+                game.aiPlayer = null;
+            }
+            
+            game.remainingBlocks = 1;
+            game.timeLeft = 30;
             game.gameActive = true;
             game.animating = false;
-            game.winningCells = [];
+            clearWinningCells(); // ★修正★ 勝利ラインを確実にクリア
             game.showingWin = false;
-            game.isAI = isVsAI; // AIモードを設定
+            game.turnCount = 0;
+            game.isAI = isVsAI;
+            game.aiThinking = false;
 
-            // 先行プレイヤーの色のブロックを真ん中の地面に設置
+            // 中央ブロック配置
             var centerCol = Math.floor(GRID_WIDTH / 2);
             var groundRow = GRID_HEIGHT - 1;
-            game.grid[groundRow][centerCol] = game.currentPlayer;
+            game.grid[groundRow][centerCol] = game.firstPlayer;
 
-            setTurnTimer(); // タイマーを最初に設定
-            startTimer();
+            console.log(`ゲーム開始 - 先攻: プレイヤー${game.firstPlayer}, AI: プレイヤー${game.aiPlayer}`);
 
+            // 画面切り替え
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('gameScreen').style.display = 'block';
             document.getElementById('gameModal').style.display = 'none';
 
+            // グリッド作成・表示更新
             createGrid();
             updateDisplay();
-            if (game.isAI && game.currentPlayer === 2) {
-                setTimeout(cpuPlay, 1500); // 初手がAIだったとき
+            startTimer();
+            
+            // AIが先攻の場合
+            if (game.isAI && game.currentPlayer === game.aiPlayer) {
+                console.log("AIが先攻で動作開始");
+                setTimeout(cpuPlay, 1500);
             }
+        }
 
+        // タイマー開始
+        function startTimer() {
+            clearInterval(game.timer);
+            
+            game.timer = setInterval(function() {
+                game.timeLeft--;
+                updateDisplay();
+                
+                if (game.timeLeft <= 0) {
+                    clearInterval(game.timer);
+                    var winner = game.currentPlayer === 1 ? 2 : 1;
+                    showAlert(`プレイヤー${game.currentPlayer}のタイムアウト！`);
+                    setTimeout(function() {
+                        endGame(winner);
+                    }, 2000);
+                }
+            }, 1000);
         }
 
         // スタート画面表示
         function showStart() {
             clearInterval(game.timer);
+            clearWinningCells(); // ★修正★ 勝利ラインをクリア
+            game.aiThinking = false;
+            
             document.getElementById('startScreen').style.display = 'block';
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('gameModal').style.display = 'none';
@@ -500,10 +539,9 @@
         function createGrid() {
             var gridElement = document.getElementById('gameGrid');
             gridElement.innerHTML = '';
-        
-            // ⭐ ここを追加（列数に応じて横幅を再設定！）
-            gridElement.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
-        
+            
+            updateGridTemplate();
+
             for (var row = 0; row < GRID_HEIGHT; row++) {
                 for (var col = 0; col < GRID_WIDTH; col++) {
                     var cell = document.createElement('div');
@@ -515,70 +553,65 @@
                         var clickedCol = parseInt(this.dataset.col);
                         placePiece(clickedRow, clickedCol);
                     };
-        
+
                     if (row === GRID_HEIGHT - 1) {
                         cell.classList.add('ground');
                     }
-        
+
                     gridElement.appendChild(cell);
                 }
             }
         }
 
-
-        // 表示更新
+        // 画面表示更新
         function updateDisplay() {
             // プレイヤー表示
             document.getElementById('player1').classList.toggle('active', game.currentPlayer === 1);
             document.getElementById('player2').classList.toggle('active', game.currentPlayer === 2);
             
-            // AIモードの場合、プレイヤー2をAIとして表示
-            var player2Element = document.getElementById('player2');
+            // AI表示
             if (game.isAI) {
-                player2Element.classList.add('ai');
-                player2Element.querySelector('span').textContent = 'AI';
+                var aiElement = game.aiPlayer === 1 ? 
+                    document.getElementById('player1') : 
+                    document.getElementById('player2');
+                aiElement.classList.add('ai');
+                aiElement.querySelector('span').textContent = `AI (Lv${aiLevel})`;
+                
+                var humanElement = game.aiPlayer === 1 ? 
+                    document.getElementById('player2') : 
+                    document.getElementById('player1');
+                humanElement.classList.remove('ai');
+                humanElement.querySelector('span').textContent = game.aiPlayer === 1 ? 'プレイヤー2' : 'プレイヤー1';
             } else {
-                player2Element.classList.remove('ai');
-                player2Element.querySelector('span').textContent = 'プレイヤー2';
+                document.getElementById('player1').classList.remove('ai');
+                document.getElementById('player2').classList.remove('ai');
+                document.getElementById('player1').querySelector('span').textContent = 'プレイヤー1';
+                document.getElementById('player2').querySelector('span').textContent = 'プレイヤー2';
             }
             
-            // 現在のプレイヤー
-            var currentPlayerName = game.currentPlayer === 1 ? 'プレイヤー1' : (game.isAI ? 'AI' : 'プレイヤー2');
+            // 現在のプレイヤー表示
+            var currentPlayerName;
+            if (game.currentPlayer === 1) {
+                currentPlayerName = (game.isAI && game.aiPlayer === 1) ? `AI (Lv${aiLevel})` : 'プレイヤー1';
+            } else {
+                currentPlayerName = (game.isAI && game.aiPlayer === 2) ? `AI (Lv${aiLevel})` : 'プレイヤー2';
+            }
             document.getElementById('currentPlayer').textContent = currentPlayerName;
             
-            // 残りブロック表示
+            // ブロック数表示
             document.getElementById('remainingBlocks').textContent = game.remainingBlocks;
-            var currentBlocks = countCurrentBlocks();
-            var maxBlocks = currentBlocks === 1 ? 1 : BLOCKS_PER_TURN; // 先行初手は1個、それ以外は2個
+            var maxBlocks = game.turnCount === 0 ? 1 : BLOCKS_PER_TURN;
             document.getElementById('maxBlocks').textContent = maxBlocks;
             
-            // タイマー
+            // タイマー表示
             var minutes = Math.floor(game.timeLeft / 60);
             var seconds = game.timeLeft % 60;
             var timerElement = document.getElementById('timer');
             timerElement.textContent = minutes + ':' + seconds.toString().padStart(2, '0');
             timerElement.classList.toggle('warning', game.timeLeft <= 30);
 
-            // グリッド更新
             updateGrid();
         }
-        ///ターン交代アニメーション
-        function applyTurnEffect() {
-            const grid = document.getElementById('gameGrid');
-            grid.classList.remove('turn-red', 'turn-blue'); // 前のクラスを削除
-        
-            if (game.currentPlayer === 1) {
-                grid.classList.add('turn-red');
-            } else if (game.currentPlayer === 2) {
-                grid.classList.add('turn-blue');
-            }
-        
-            // 1秒後にクラス削除（アニメーション終了）
-            setTimeout(() => {
-                grid.classList.remove('turn-red', 'turn-blue');
-            }, 1000);
-        }
-
 
         // グリッド表示更新
         function updateGrid() {
@@ -588,6 +621,8 @@
             for (var row = 0; row < GRID_HEIGHT; row++) {
                 for (var col = 0; col < GRID_WIDTH; col++) {
                     var cell = cells[index];
+                    if (!cell) continue;
+                    
                     var value = game.grid[row][col];
                     
                     cell.className = 'cell';
@@ -609,8 +644,8 @@
                 }
             }
             
-            // 勝利ブロックを点滅表示
-            if (game.winningCells.length > 0) {
+            // ★修正★ 勝利確定時のみ黄色い枠を表示
+            if (game.showingWin && game.winningCells.length > 0) {
                 for (var w = 0; w < game.winningCells.length; w++) {
                     var r = game.winningCells[w][0];
                     var c = game.winningCells[w][1];
@@ -620,6 +655,1497 @@
                     }
                 }
             }
+        }
+
+        // 地面配置チェック
+        function isValidGroundPlacement(col) {
+            var groundRow = GRID_HEIGHT - 1;
+            var leftCol = col - 1;
+            var rightCol = col + 1;
+            
+            // 左右隣接チェック
+            if (leftCol >= 0 && game.grid[groundRow][leftCol] !== 0) {
+                return true;
+            }
+            if (rightCol < GRID_WIDTH && game.grid[groundRow][rightCol] !== 0) {
+                return true;
+            }
+            
+            return false;
+        }
+
+        // 配置可能かチェック（重力・隣接ルール含む）
+        function isValidPlacement(row, col) {
+            if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
+                return false;
+            }
+            if (game.grid[row][col] !== 0) {
+                return false;
+            }
+            if (row < GRID_HEIGHT - 1 && game.grid[row + 1][col] === 0) {
+                return false;
+            }
+            if (row === GRID_HEIGHT - 1 && !isValidGroundPlacement(col)) {
+                return false;
+            }
+            return true;
+        }
+
+        // 有効な手をすべて取得
+        function getAllValidMoves() {
+            var validMoves = [];
+            
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) continue;
+                    
+                    var hasSupport = (row === GRID_HEIGHT - 1) || 
+                                    (row + 1 < GRID_HEIGHT && game.grid[row + 1][col] !== 0);
+                    
+                    if (hasSupport) {
+                        if (row === GRID_HEIGHT - 1) {
+                            if (isValidGroundPlacement(col)) {
+                                validMoves.push([row, col]);
+                            }
+                        } else {
+                            validMoves.push([row, col]);
+                        }
+                    }
+                }
+            }
+            
+            return validMoves;
+        }
+
+        // ランダムな手を選択
+        function getRandomMove() {
+            const validMoves = getAllValidMoves();
+            if (validMoves.length === 0) return null;
+            const randomIndex = Math.floor(Math.random() * validMoves.length);
+            return validMoves[randomIndex];
+        }
+
+        // ★修正版★ 勝利可能な手を探す（AI探索時にwinningCellsを汚染しない）
+        function findWinningMove(player) {
+            console.log(`勝利手検索開始 - プレイヤー${player}`);
+            
+            // 現在のwinningCellsを保存
+            var originalWinningCells = game.winningCells.slice();
+            
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) continue;
+                    if (!isValidPlacement(row, col)) continue;
+                    
+                    game.grid[row][col] = player;
+                    var canWin = checkWin(row, col);
+                    game.grid[row][col] = 0;
+                    
+                    if (canWin) {
+                        console.log(`勝利手発見: (${row}, ${col}) - プレイヤー${player}が勝利`);
+                        // ★修正★ 探索で汚染されたwinningCellsを復元
+                        game.winningCells = originalWinningCells;
+                        return [row, col];
+                    }
+                }
+            }
+            
+            // ★修正★ 探索で汚染されたwinningCellsを復元
+            game.winningCells = originalWinningCells;
+            console.log("勝利手なし");
+            return null;
+        }
+
+        // ★修正版★ 試合段階判定（序盤・中盤・終盤）
+        function getGamePhase() {
+            var totalBlocks = 0;
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) {
+                        totalBlocks++;
+                    }
+                }
+            }
+            
+            if (totalBlocks < 15) {
+                return 'early'; // 序盤
+            } else if (totalBlocks < 30) {
+                return 'middle'; // 中盤
+            } else {
+                return 'late'; // 終盤（30個以上で縦2連戦略開始）
+            }
+        }
+
+        // ★新規追加★ 縦2連作成戦略
+        function findVerticalDoubleMove(player) {
+            console.log(`縦2連作成戦略検索開始 - プレイヤー${player}`);
+            
+            var validMoves = getAllValidMoves();
+            var bestMove = null;
+            var bestScore = 0;
+            
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+                
+                // この位置に置いた場合の縦2連効果を評価
+                game.grid[row][col] = player;
+                
+                var verticalScore = evaluateVerticalDouble(row, col, player);
+                
+                game.grid[row][col] = 0;
+                
+                if (verticalScore > bestScore) {
+                    bestScore = verticalScore;
+                    bestMove = move;
+                }
+            }
+            
+            if (bestMove && bestScore > 50) {
+                console.log(`縦2連作成手選択: (${bestMove[0]}, ${bestMove[1]}) - スコア:${bestScore}`);
+                return bestMove;
+            }
+            
+            console.log("有効な縦2連作成手なし");
+            return null;
+        }
+
+        // ★補助関数★ 縦2連効果評価
+        function evaluateVerticalDouble(row, col, player) {
+            var score = 0;
+            
+            // 下方向をチェック（縦に積み重ね）
+            if (row < GRID_HEIGHT - 1 && game.grid[row + 1][col] === player) {
+                score += 80; // 縦2連完成
+                
+                // さらに下にもあるかチェック
+                if (row < GRID_HEIGHT - 2 && game.grid[row + 2][col] === player) {
+                    score += 120; // 縦3連になる
+                }
+                
+                // 上に伸ばせるかチェック
+                if (row > 0 && game.grid[row - 1][col] === 0) {
+                    score += 60; // 上に伸ばし可能
+                }
+            }
+            
+            // 上方向をチェック（既存ブロックの上に積む）
+            if (row > 0 && game.grid[row - 1][col] === player) {
+                score += 70; // 縦2連に参加
+                
+                // さらに上にもあるかチェック
+                if (row > 1 && game.grid[row - 2][col] === player) {
+                    score += 100; // 縦3連に参加
+                }
+            }
+            
+            // 戦略的位置ボーナス（中央付近）
+            var centerCol = Math.floor(GRID_WIDTH / 2);
+            var distanceFromCenter = Math.abs(col - centerCol);
+            score += Math.max(0, 20 - distanceFromCenter * 2);
+            
+            return score;
+        }
+
+        // ★修正版★ 縦2連 + 本命攻撃戦略（終盤30個以上限定）
+        function findVerticalDoublePlusThreatMove(player) {
+            var gamePhase = getGamePhase();
+            
+            if (gamePhase !== 'late') {
+                console.log(`縦2連+本命攻撃: ${gamePhase}のためスキップ（30個以上で発動）`);
+                return null;
+            }
+            
+            console.log(`縦2連+本命攻撃検索開始 - プレイヤー${player} (終盤戦略)`);
+            
+            // 既存の縦2連を探す
+            var verticalDoubles = [];
+            for (var row = 0; row < GRID_HEIGHT - 1; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] === player && game.grid[row + 1][col] === player) {
+                        // 上に伸ばせる縦2連を発見
+                        if (row > 0 && game.grid[row - 1][col] === 0 && isValidPlacement(row - 1, col)) {
+                            verticalDoubles.push({
+                                extendPos: [row - 1, col],
+                                baseRow: row + 1,
+                                score: 90
+                            });
+                        }
+                    }
+                }
+            }
+            
+            if (verticalDoubles.length === 0) {
+                console.log("活用可能な縦2連なし");
+                return null;
+            }
+            
+            console.log(`活用可能な縦2連: ${verticalDoubles.length}個発見`);
+            
+            // 各縦2連について、同時攻撃可能な本命を探す
+            var validMoves = getAllValidMoves();
+            var bestComboMove = null;
+            var bestComboScore = 0;
+            
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+                
+                // この手を置いた場合の脅威レベルを評価
+                game.grid[row][col] = player;
+                
+                var threats = findConsecutiveBlocks(player, 2);
+                var mainThreatScore = 0;
+                
+                for (var t = 0; t < threats.length; t++) {
+                    mainThreatScore += evaluateThreat(threats[t], player);
+                }
+                
+                game.grid[row][col] = 0;
+                
+                // 縦2連との組み合わせ効果を計算
+                if (mainThreatScore > 200) { // 本命として価値がある手
+                    for (var v = 0; v < verticalDoubles.length; v++) {
+                        var vDouble = verticalDoubles[v];
+                        
+                        // 同じターンで実行可能かチェック（異なる位置である必要）
+                        if (row !== vDouble.extendPos[0] || col !== vDouble.extendPos[1]) {
+                            var comboScore = mainThreatScore + vDouble.score + 150; // コンボボーナス
+                            
+                            if (comboScore > bestComboScore) {
+                                bestComboScore = comboScore;
+                                bestComboMove = move;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (bestComboMove && bestComboScore > 400) {
+                console.log(`縦2連+本命攻撃手選択: (${bestComboMove[0]}, ${bestComboMove[1]}) - コンボスコア:${bestComboScore}`);
+                return bestComboMove;
+            }
+            
+            console.log("有効な縦2連+本命攻撃なし");
+            return null;
+        }
+
+        // ★修正版★ 相手の縦2連阻止（終盤30個以上限定）
+        function findVerticalDoubleBlock(player) {
+            var opponent = player === 1 ? 2 : 1;
+            var gamePhase = getGamePhase();
+            
+            if (gamePhase !== 'late') {
+                console.log(`相手縦2連阻止: ${gamePhase}のためスキップ（30個以上で発動）`);
+                return null;
+            }
+            
+            console.log(`相手縦2連阻止検索 - 相手プレイヤー${opponent} (終盤戦略)`);
+            
+            var dangerousVerticalDoubles = [];
+            
+            // 相手の縦2連を探す
+            for (var row = 0; row < GRID_HEIGHT - 1; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] === opponent && game.grid[row + 1][col] === opponent) {
+                        // 上に伸ばせる相手の縦2連を発見
+                        if (row > 0 && game.grid[row - 1][col] === 0 && isValidPlacement(row - 1, col)) {
+                            var dangerLevel = 120; // 終盤では高危険度
+                            
+                            // 中央付近はより危険
+                            var centerCol = Math.floor(GRID_WIDTH / 2);
+                            var distanceFromCenter = Math.abs(col - centerCol);
+                            dangerLevel += Math.max(0, 20 - distanceFromCenter * 2);
+                            
+                            dangerousVerticalDoubles.push({
+                                blockPos: [row - 1, col],
+                                danger: dangerLevel
+                            });
+                        }
+                    }
+                }
+            }
+            
+            if (dangerousVerticalDoubles.length > 0) {
+                // 最も危険な縦2連を阻止
+                dangerousVerticalDoubles.sort(function(a, b) { return b.danger - a.danger; });
+                var mostDangerous = dangerousVerticalDoubles[0];
+                
+                console.log(`危険な相手縦2連阻止: (${mostDangerous.blockPos[0]}, ${mostDangerous.blockPos[1]}) - 危険度:${mostDangerous.danger}`);
+                return mostDangerous.blockPos;
+            }
+            
+            console.log("阻止すべき相手縦2連なし");
+            return null;
+        }
+
+        // ★修正版★ 縦2連作成戦略（終盤30個以上限定）
+        function findVerticalDoubleMove(player) {
+            var gamePhase = getGamePhase();
+            
+            if (gamePhase !== 'late') {
+                console.log(`縦2連作成: ${gamePhase}のためスキップ（30個以上で発動）`);
+                return null;
+            }
+            
+            console.log(`縦2連作成戦略検索開始 - プレイヤー${player} (終盤戦略)`);
+            
+            var validMoves = getAllValidMoves();
+            var bestMove = null;
+            var bestScore = 0;
+            
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+                
+                // この位置に置いた場合の縦2連効果を評価
+                game.grid[row][col] = player;
+                
+                var verticalScore = evaluateVerticalDouble(row, col, player);
+                
+                game.grid[row][col] = 0;
+                
+                if (verticalScore > bestScore) {
+                    bestScore = verticalScore;
+                    bestMove = move;
+                }
+            }
+            
+            if (bestMove && bestScore > 50) {
+                console.log(`縦2連作成手選択: (${bestMove[0]}, ${bestMove[1]}) - スコア:${bestScore}`);
+                return bestMove;
+            }
+            
+            console.log("有効な縦2連作成手なし");
+            return null;
+        }
+
+        // ★新規追加★ 相手の複数脅威を阻止
+        function findMultipleThreatBlock(player) {
+            var opponent = player === 1 ? 2 : 1;
+            console.log(`相手複数脅威阻止検索 - 相手プレイヤー${opponent}`);
+            
+            // 相手の現在の脅威を評価
+            var opponentThreats = findConsecutiveBlocks(opponent, 3);
+            if (opponentThreats.length < 2) {
+                return null; // 複数脅威でない
+            }
+
+            var totalDefenseRequired = 0;
+            for (var i = 0; i < opponentThreats.length; i++) {
+                totalDefenseRequired += calculateDefenseRequired(opponentThreats[i], opponent);
+            }
+
+            if (totalDefenseRequired >= 3) {
+                console.log(`相手の複数脅威検出 - 防御必要数:${totalDefenseRequired}`);
+                
+                // 最も危険な脅威を阻止
+                var mostDangerous = null;
+                var maxScore = 0;
+                
+                for (var i = 0; i < opponentThreats.length; i++) {
+                    var threat = opponentThreats[i];
+                    var score = evaluateThreat(threat, opponent);
+                    if (score > maxScore) {
+                        maxScore = score;
+                        mostDangerous = threat;
+                    }
+                }
+
+                if (mostDangerous && mostDangerous.extendable.length > 0) {
+                    var blockPos = mostDangerous.extendable[0];
+                    if (isValidPlacement(blockPos[0], blockPos[1])) {
+                        console.log(`複数脅威阻止手: (${blockPos[0]}, ${blockPos[1]})`);
+                        return blockPos;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // ★修正版★ 相手の勝利を阻止する手を探す
+        function findBlockingMove(player) {
+            var opponent = player === 1 ? 2 : 1;
+            console.log(`阻止手検索開始 - 相手プレイヤー${opponent}の勝利を阻止`);
+            
+            // 現在のwinningCellsを保存
+            var originalWinningCells = game.winningCells.slice();
+            
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== 0) continue;
+                    if (!isValidPlacement(row, col)) continue;
+                    
+                    game.grid[row][col] = opponent;
+                    var opponentWins = checkWin(row, col);
+                    game.grid[row][col] = 0;
+                    
+                    if (opponentWins) {
+                        console.log(`阻止手発見: (${row}, ${col}) - 相手プレイヤー${opponent}の勝利を阻止`);
+                        // ★修正★ 探索で汚染されたwinningCellsを復元
+                        game.winningCells = originalWinningCells;
+                        return [row, col];
+                    }
+                }
+            }
+            
+            // ★修正★ 探索で汚染されたwinningCellsを復元
+            game.winningCells = originalWinningCells;
+            console.log("阻止手なし");
+            return null;
+        }
+
+        // ★新規追加★ 3連脅威を検出・阻止する専用関数
+        function findThreeInARowThreat(player) {
+            var opponent = player === 1 ? 2 : 1;
+            console.log(`3連脅威検索開始 - 相手プレイヤー${opponent}`);
+            
+            var originalWinningCells = game.winningCells.slice();
+            var threats = [];
+
+            // 相手の3連以上を探す
+            var consecutiveBlocks = findConsecutiveBlocks(opponent, 3);
+            
+            for (var i = 0; i < consecutiveBlocks.length; i++) {
+                var blockInfo = consecutiveBlocks[i];
+                var line = blockInfo.line;
+                var direction = blockInfo.direction;
+                var extendable = blockInfo.extendable;
+                var isGround = blockInfo.isGround;
+
+                // 脅威レベルを計算
+                var threatLevel = 0;
+                var blockPositions = [];
+
+                if (line.length === 3) {
+                    if (direction === 1) {
+                        // 縦3連 - 次ターンで確実に5連（上に2個置ける）
+                        console.log(`危険な縦3連検出:`, line);
+                        threatLevel = 900;
+                        
+                        // 上端を阻止
+                        for (var j = 0; j < extendable.length; j++) {
+                            var pos = extendable[j];
+                            if (pos[0] < line[0][0]) { // より上の位置
+                                if (isValidPlacement(pos[0], pos[1])) {
+                                    blockPositions.push(pos);
+                                }
+                            }
+                        }
+                    } else if (direction === 0 && isGround) {
+                        // 地面横3連 - 次ターンで確実に5連（両端に1個ずつ）
+                        console.log(`危険な地面横3連検出:`, line);
+                        threatLevel = 950;
+                        
+                        // 両端を阻止ポイントに追加
+                        for (var j = 0; j < extendable.length; j++) {
+                            var pos = extendable[j];
+                            if (isValidPlacement(pos[0], pos[1])) {
+                                blockPositions.push(pos);
+                            }
+                        }
+                    } else if (direction === 0) {
+                        // 通常の横3連
+                        console.log(`横3連検出:`, line);
+                        threatLevel = 700;
+                        
+                        for (var j = 0; j < extendable.length; j++) {
+                            var pos = extendable[j];
+                            if (isValidPlacement(pos[0], pos[1])) {
+                                blockPositions.push(pos);
+                            }
+                        }
+                    } else {
+                        // 斜め3連
+                        console.log(`斜め3連検出:`, line);
+                        threatLevel = 600;
+                        
+                        for (var j = 0; j < extendable.length; j++) {
+                            var pos = extendable[j];
+                            if (isValidPlacement(pos[0], pos[1])) {
+                                blockPositions.push(pos);
+                            }
+                        }
+                    }
+                } else if (line.length === 4) {
+                    // 4連は最高脅威
+                    console.log(`極めて危険な4連検出:`, line);
+                    threatLevel = 1000;
+                    
+                    for (var j = 0; j < extendable.length; j++) {
+                        var pos = extendable[j];
+                        if (isValidPlacement(pos[0], pos[1])) {
+                            blockPositions.push(pos);
+                        }
+                    }
+                }
+
+                if (blockPositions.length > 0) {
+                    threats.push({
+                        level: threatLevel,
+                        positions: blockPositions,
+                        type: direction === 1 ? '縦' : (direction === 0 ? (isGround ? '地面横' : '横') : '斜め'),
+                        length: line.length
+                    });
+                }
+            }
+
+            game.winningCells = originalWinningCells;
+
+            // 最も危険な脅威を優先して阻止
+            if (threats.length > 0) {
+                // 脅威レベルでソート
+                threats.sort(function(a, b) { return b.level - a.level; });
+                
+                var topThreat = threats[0];
+                console.log(`最優先脅威: ${topThreat.type}${topThreat.length}連 (脅威レベル:${topThreat.level})`);
+                
+                // 最適な阻止位置を選択
+                var blockPos = topThreat.positions[0];
+                console.log(`3連脅威阻止手: (${blockPos[0]}, ${blockPos[1]})`);
+                return blockPos;
+            }
+
+            console.log("3連脅威なし");
+            return null;
+        }
+
+        // 中央付近の価値の高い手を探す
+        function findCenterMove() {
+            console.log("中央制圧手検索開始");
+            
+            var centerCol = Math.floor(GRID_WIDTH / 2);
+            var validMoves = getAllValidMoves();
+            
+            if (validMoves.length === 0) {
+                console.log("中央制圧手なし - 有効手が0個");
+                return null;
+            }
+            
+            validMoves.sort(function(a, b) {
+                var distA = Math.abs(a[1] - centerCol);
+                var distB = Math.abs(b[1] - centerCol);
+                return distA - distB;
+            });
+            
+            console.log(`中央制圧手選択: (${validMoves[0][0]}, ${validMoves[0][1]}) - 中央からの距離: ${Math.abs(validMoves[0][1] - centerCol)}`);
+            return validMoves[0];
+        }
+
+        // ★修正版★ 2手勝利の可能性を探す
+        function findTwoMoveWin(player) {
+            console.log(`2手勝利検索開始 - プレイヤー${player}`);
+            
+            // 現在のwinningCellsを保存
+            var originalWinningCells = game.winningCells.slice();
+            
+            var validMoves = getAllValidMoves();
+            
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+                
+                game.grid[row][col] = player;
+                
+                var hasWinningFollow = false;
+                for (var row2 = 0; row2 < GRID_HEIGHT; row2++) {
+                    for (var col2 = 0; col2 < GRID_WIDTH; col2++) {
+                        if (game.grid[row2][col2] !== 0) continue;
+                        if (!isValidPlacement(row2, col2)) continue;
+                        
+                        game.grid[row2][col2] = player;
+                        var canWin = checkWin(row2, col2);
+                        game.grid[row2][col2] = 0;
+                        
+                        if (canWin) {
+                            hasWinningFollow = true;
+                            break;
+                        }
+                    }
+                    if (hasWinningFollow) break;
+                }
+                
+                game.grid[row][col] = 0;
+                
+                if (hasWinningFollow) {
+                    console.log(`2手勝利の起点発見: (${row}, ${col}) - プレイヤー${player}`);
+                    // ★修正★ 探索で汚染されたwinningCellsを復元
+                    game.winningCells = originalWinningCells;
+                    return [row, col];
+                }
+            }
+            
+            // ★修正★ 探索で汚染されたwinningCellsを復元
+            game.winningCells = originalWinningCells;
+            console.log("2手勝利なし");
+            return null;
+        }
+
+        // ★LEVEL4専用★ 連続ブロック検出
+        function findConsecutiveBlocks(player, length) {
+            var results = [];
+            var directions = [
+                [0, 1],  // 横
+                [1, 0],  // 縦
+                [1, 1],  // 斜め右下
+                [1, -1]  // 斜め左下
+            ];
+
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                for (var col = 0; col < GRID_WIDTH; col++) {
+                    if (game.grid[row][col] !== player) continue;
+
+                    for (var d = 0; d < directions.length; d++) {
+                        var dr = directions[d][0];
+                        var dc = directions[d][1];
+                        var line = [[row, col]];
+                        
+                        // 正方向に延ばす
+                        for (var i = 1; i < WIN_COUNT; i++) {
+                            var r = row + dr * i;
+                            var c = col + dc * i;
+                            if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
+                                game.grid[r][c] === player) {
+                                line.push([r, c]);
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if (line.length >= length) {
+                            // 延長可能性をチェック
+                            var extendable = [];
+                            
+                            // 前方
+                            var frontR = row - dr;
+                            var frontC = col - dc;
+                            if (frontR >= 0 && frontR < GRID_HEIGHT && frontC >= 0 && frontC < GRID_WIDTH && 
+                                game.grid[frontR][frontC] === 0) {
+                                extendable.push([frontR, frontC]);
+                            }
+                            
+                            // 後方
+                            var backR = row + dr * line.length;
+                            var backC = col + dc * line.length;
+                            if (backR >= 0 && backR < GRID_HEIGHT && backC >= 0 && backC < GRID_WIDTH && 
+                                game.grid[backR][backC] === 0) {
+                                extendable.push([backR, backC]);
+                            }
+
+                            results.push({
+                                line: line,
+                                direction: d,
+                                extendable: extendable,
+                                isGround: row === GRID_HEIGHT - 1 || (row + dr * (line.length - 1)) === GRID_HEIGHT - 1
+                            });
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        // ★LEVEL4専用★ 脅威評価
+        function evaluateThreat(consecutiveInfo, player) {
+            var length = consecutiveInfo.line.length;
+            var extendable = consecutiveInfo.extendable;
+            var isGround = consecutiveInfo.isGround;
+            var direction = consecutiveInfo.direction;
+
+            var score = 0;
+
+            if (length === 4) {
+                // 4連は最高脅威
+                score = 1000;
+                if (extendable.length >= 1) {
+                    score += 500; // 延長可能
+                }
+            } else if (length === 3) {
+                if (direction === 1) { // 縦
+                    // 縦3連は次ターンで確実に5連
+                    score = 800;
+                } else if (direction === 0 && isGround) {
+                    // 地面レベルの横3連は両端防御必須
+                    score = 850;
+                } else if (direction === 0) {
+                    // 横3連
+                    if (extendable.length >= 2) {
+                        score = 700; // 両端延長可能
+                    } else if (extendable.length === 1) {
+                        score = 500; // 片端のみ
+                    }
+                } else {
+                    // 斜め3連
+                    if (extendable.length >= 2) {
+                        score = 600;
+                    } else if (extendable.length === 1) {
+                        score = 400;
+                    }
+                }
+            } else if (length === 2) {
+                score = length * 10; // 基本スコア
+            }
+
+            return score;
+        }
+
+        // ★LEVEL4専用★ 防御必要数計算
+        function calculateDefenseRequired(consecutiveInfo, player) {
+            var length = consecutiveInfo.line.length;
+            var extendable = consecutiveInfo.extendable;
+            var direction = consecutiveInfo.direction;
+            var isGround = consecutiveInfo.isGround;
+
+            if (length === 4) {
+                // 4連の防御
+                var requiredBlocks = 0;
+                for (var i = 0; i < extendable.length; i++) {
+                    var pos = extendable[i];
+                    if (isValidPlacement(pos[0], pos[1])) {
+                        requiredBlocks++;
+                    }
+                }
+                return Math.min(requiredBlocks, 2); // 最大2個まで
+            } else if (length === 3) {
+                if (direction === 1) { // 縦3連
+                    return 1; // 上に1個置けば防御可能
+                } else if (direction === 0 && isGround) {
+                    // 地面の横3連は両端防御必要
+                    return 2;
+                } else {
+                    // その他の3連
+                    var validExtendable = 0;
+                    for (var i = 0; i < extendable.length; i++) {
+                        var pos = extendable[i];
+                        if (isValidPlacement(pos[0], pos[1])) {
+                            validExtendable++;
+                        }
+                    }
+                    return Math.min(validExtendable, 2);
+                }
+            }
+
+            return 1; // デフォルト
+        }
+
+        // ★LEVEL4専用★ 複数脅威作成手を探す
+        function findMultipleThreatMove(player) {
+            console.log(`複数脅威検索開始 - プレイヤー${player}`);
+            
+            var originalWinningCells = game.winningCells.slice();
+            var validMoves = getAllValidMoves();
+            var bestMove = null;
+            var maxThreats = 0;
+
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+
+                // 手を試す
+                game.grid[row][col] = player;
+
+                // この手で作られる脅威を評価
+                var threats = findConsecutiveBlocks(player, 3);
+                var totalThreatScore = 0;
+                var defenseRequired = 0;
+
+                for (var t = 0; t < threats.length; t++) {
+                    var threat = threats[t];
+                    totalThreatScore += evaluateThreat(threat, player);
+                    defenseRequired += calculateDefenseRequired(threat, player);
+                }
+
+                // 複数脅威かつ防御に3個以上必要なら優秀
+                if (threats.length >= 2 && defenseRequired >= 3) {
+                    console.log(`複数脅威発見: (${row}, ${col}) - 脅威数:${threats.length}, 防御必要数:${defenseRequired}`);
+                    
+                    if (defenseRequired > maxThreats || (defenseRequired === maxThreats && totalThreatScore > 0)) {
+                        maxThreats = defenseRequired;
+                        bestMove = [row, col];
+                    }
+                }
+
+                // 手を戻す
+                game.grid[row][col] = 0;
+            }
+
+            game.winningCells = originalWinningCells;
+            
+            if (bestMove) {
+                console.log(`複数脅威手選択: (${bestMove[0]}, ${bestMove[1]}) - 防御必要数:${maxThreats}`);
+            } else {
+                console.log("複数脅威手なし");
+            }
+            
+            return bestMove;
+        }
+
+        // ★LEVEL4専用★ 高脅威手を探す
+        function findHighThreatMove(player) {
+            console.log(`高脅威手検索開始 - プレイヤー${player}`);
+            
+            var originalWinningCells = game.winningCells.slice();
+            var validMoves = getAllValidMoves();
+            var bestMove = null;
+            var maxScore = 0;
+
+            for (var i = 0; i < validMoves.length; i++) {
+                var move = validMoves[i];
+                var row = move[0];
+                var col = move[1];
+
+                // 手を試す
+                game.grid[row][col] = player;
+
+                // この手で作られる脅威を評価
+                var threats = findConsecutiveBlocks(player, 2);
+                var totalScore = 0;
+
+                for (var t = 0; t < threats.length; t++) {
+                    totalScore += evaluateThreat(threats[t], player);
+                }
+
+                if (totalScore > maxScore) {
+                    maxScore = totalScore;
+                    bestMove = [row, col];
+                }
+
+                // 手を戻す
+                game.grid[row][col] = 0;
+            }
+
+            game.winningCells = originalWinningCells;
+            
+            if (bestMove && maxScore > 100) {
+                console.log(`高脅威手選択: (${bestMove[0]}, ${bestMove[1]}) - スコア:${maxScore}`);
+                return bestMove;
+            }
+            
+            console.log("有効な高脅威手なし");
+            return null;
+        }
+
+        // ★LEVEL4専用★ 相手の複数脅威を阻止
+        function findMultipleThreatBlock(player) {
+            var opponent = player === 1 ? 2 : 1;
+            console.log(`相手複数脅威阻止検索 - 相手プレイヤー${opponent}`);
+            
+            // 相手の現在の脅威を評価
+            var opponentThreats = findConsecutiveBlocks(opponent, 3);
+            if (opponentThreats.length < 2) {
+                return null; // 複数脅威でない
+            }
+
+            var totalDefenseRequired = 0;
+            for (var i = 0; i < opponentThreats.length; i++) {
+                totalDefenseRequired += calculateDefenseRequired(opponentThreats[i], opponent);
+            }
+
+            if (totalDefenseRequired >= 3) {
+                console.log(`相手の複数脅威検出 - 防御必要数:${totalDefenseRequired}`);
+                
+                // 最も危険な脅威を阻止
+                var mostDangerous = null;
+                var maxScore = 0;
+                
+                for (var i = 0; i < opponentThreats.length; i++) {
+                    var threat = opponentThreats[i];
+                    var score = evaluateThreat(threat, opponent);
+                    if (score > maxScore) {
+                        maxScore = score;
+                        mostDangerous = threat;
+                    }
+                }
+
+                if (mostDangerous && mostDangerous.extendable.length > 0) {
+                    var blockPos = mostDangerous.extendable[0];
+                    if (isValidPlacement(blockPos[0], blockPos[1])) {
+                        console.log(`複数脅威阻止手: (${blockPos[0]}, ${blockPos[1]})`);
+                        return blockPos;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // ★修正版★ ブロック配置処理
+        function placePiece(row, col, isAIMove) {
+            try {
+                // バリデーション
+                if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
+                    return;
+                }
+                
+                if (!game.gameActive || game.animating || game.remainingBlocks <= 0) {
+                    return;
+                }
+                
+                if (game.isAI && game.currentPlayer === game.aiPlayer && !isAIMove) {
+                    return;
+                }
+                
+                if (game.grid[row][col] !== 0) {
+                    if (!isAIMove) {
+                        showAlert("そのマスには既にブロックがあります！");
+                    }
+                    return;
+                }
+                
+                if (row < GRID_HEIGHT - 1 && game.grid[row + 1][col] === 0) {
+                    if (!isAIMove) {
+                        showAlert("この位置には下に支えがありません！");
+                    }
+                    return;
+                }
+                
+                if (row === GRID_HEIGHT - 1 && !isValidGroundPlacement(col)) {
+                    if (!isAIMove) {
+                        showAlert("地面に置くには隣接ブロックが必要です！");
+                    }
+                    return;
+                }
+                
+                // 配置実行
+                game.animating = true;
+                
+                setTimeout(function () {
+                    game.grid[row][col] = game.currentPlayer;
+                    game.remainingBlocks--;
+                    
+                    console.log(`ブロック配置完了 - プレイヤー${game.currentPlayer}, 残り${game.remainingBlocks}個`);
+                    
+                    // ★修正★ 勝利判定
+                    if (checkWin(row, col)) {
+                        game.showingWin = true; // ★修正★ 勝利確定フラグを設定
+                        console.log("勝利確定！勝利ライン表示開始");
+                        
+                        showWinningCells(); // ★修正★ この関数は定義済み
+                        updateGrid(); // 黄色い枠を含めて画面更新
+                        
+                        setTimeout(function() {
+                            endGame(game.currentPlayer);
+                        }, 3000); // 3秒間黄色い枠を表示してからゲーム終了
+                        return;
+                    }
+                    
+                    // ターン終了処理
+                    if (game.remainingBlocks <= 0) {
+                        setTimeout(function () {
+                            clearInterval(game.timer);
+                            
+                            // ターン交代
+                            game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
+                            game.turnCount++;
+                            
+                            // ブロック数設定
+                            game.remainingBlocks = game.turnCount === 1 ? BLOCKS_PER_TURN : BLOCKS_PER_TURN;
+                            
+                            // タイマー設定
+                            if (game.turnCount === 0) {
+                                game.timeLeft = 30;
+                            } else if (game.turnCount === 1) {
+                                game.timeLeft = 45;
+                            } else {
+                                game.timeLeft = 60;
+                            }
+                            
+                            console.log(`ターン交代 - プレイヤー${game.currentPlayer}, ターン${game.turnCount}`);
+                            
+                            startTimer();
+                            updateDisplay();
+                            
+                            // AIのターン
+                            if (game.isAI && game.currentPlayer === game.aiPlayer) {
+                                setTimeout(cpuPlay, 800);
+                            }
+                        }, 500);
+                    }
+                    
+                    game.animating = false;
+                    updateDisplay();
+                    
+                    // フィールド拡張チェック
+                    checkAndExtendGrid();
+                    
+                }, 300);
+                
+            } catch (error) {
+                console.error("ブロック配置でエラー:", error);
+                game.animating = false;
+                showAlert("エラーが発生しました。");
+            }
+        }
+
+        // フィールド拡張機能
+        function checkAndExtendGrid() {
+            var needsUpdate = false;
+
+            // 左端チェック（0列目にブロックがある場合）
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                if (game.grid[row][0] !== 0) {
+                    console.log("左端拡張実行");
+                    extendGridLeft();
+                    needsUpdate = true;
+                    break;
+                }
+            }
+
+            // 右端チェック（最後の列にブロックがある場合）
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                if (game.grid[row][GRID_WIDTH - 1] !== 0) {
+                    console.log("右端拡張実行");
+                    extendGridRight();
+                    needsUpdate = true;
+                    break;
+                }
+            }
+
+            // 上端チェック（0行目にブロックがある場合）
+            for (var col = 0; col < GRID_WIDTH; col++) {
+                if (game.grid[0][col] !== 0) {
+                    console.log("上端拡張実行");
+                    extendGridTop();
+                    needsUpdate = true;
+                    break;
+                }
+            }
+
+            // 拡張した場合はグリッドを再作成
+            if (needsUpdate) {
+                createGrid();
+                updateDisplay();
+            }
+        }
+
+        function extendGridLeft() {
+            // 各行の先頭に空のセルを追加
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                game.grid[row].unshift(0);
+            }
+            GRID_WIDTH++;
+            console.log(`左拡張完了 - 新サイズ: ${GRID_WIDTH}x${GRID_HEIGHT}`);
+        }
+
+        function extendGridRight() {
+            // 各行の末尾に空のセルを追加
+            for (var row = 0; row < GRID_HEIGHT; row++) {
+                game.grid[row].push(0);
+            }
+            GRID_WIDTH++;
+            console.log(`右拡張完了 - 新サイズ: ${GRID_WIDTH}x${GRID_HEIGHT}`);
+        }
+
+        function extendGridTop() {
+            // 上に新しい行を追加
+            var newRow = new Array(GRID_WIDTH).fill(0);
+            game.grid.unshift(newRow);
+            GRID_HEIGHT++;
+            console.log(`上拡張完了 - 新サイズ: ${GRID_WIDTH}x${GRID_HEIGHT}`);
+        }
+
+        function updateGridTemplate() {
+            var gridElement = document.getElementById('gameGrid');
+            if (gridElement) {
+                gridElement.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
+            }
+        }
+
+        function cpuPlay() {
+            if (!game.gameActive || game.currentPlayer !== game.aiPlayer || !game.isAI || game.showingWin) {
+                console.log("AI動作停止");
+                return;
+            }
+
+            console.log(`AI動作開始 Lv${aiLevel} - 配置予定ブロック数:`, game.remainingBlocks);
+            
+            game.aiThinking = true;
+            
+            let placed = 0;
+            const maxBlocks = game.remainingBlocks;
+
+            function placeOneBlock() {
+                if (placed >= maxBlocks || !game.gameActive || game.currentPlayer !== game.aiPlayer) {
+                    console.log("AI配置完了");
+                    game.aiThinking = false;
+                    return;
+                }
+
+                let chosenMove = null;
+
+                // レベル別AI実装
+                if (aiLevel === 1) {
+                    // レベル1: ランダム
+                    chosenMove = getRandomMove();
+                    console.log("Lv1（ランダム）戦略で手を選択");
+                    
+                } else if (aiLevel === 2) {
+                    // レベル2: 即座脅威対応型
+                    console.log("=== レベル2AI動作開始 ===");
+                    
+                    try {
+                        var winMove = findWinningMove(game.aiPlayer);
+                        
+                        if (winMove) {
+                            console.log("レベル2: 勝利手選択");
+                            chosenMove = winMove;
+                        } else {
+                            var blockMove = findBlockingMove(game.aiPlayer);
+                            
+                            if (blockMove) {
+                                console.log("レベル2: 阻止手選択");
+                                chosenMove = blockMove;
+                            } else {
+                                chosenMove = getRandomMove();
+                                console.log("レベル2: ランダム手選択");
+                            }
+                        }
+                    } catch (error) {
+                        console.error("レベル2AI処理でエラー:", error);
+                        chosenMove = getRandomMove();
+                    }
+                    
+                } else if (aiLevel === 3) {
+                    // レベル3: 戦術的思考型
+                    console.log("=== レベル3AI動作開始 ===");
+                    
+                    try {
+                        var winMove = findWinningMove(game.aiPlayer);
+                        
+                        if (winMove) {
+                            console.log("レベル3: 勝利手選択");
+                            chosenMove = winMove;
+                        } else {
+                            var blockMove = findBlockingMove(game.aiPlayer);
+                            
+                            if (blockMove) {
+                                console.log("レベル3: 阻止手選択");
+                                chosenMove = blockMove;
+                            } else {
+                                var twoMoveWin = findTwoMoveWin(game.aiPlayer);
+                                
+                                if (twoMoveWin) {
+                                    console.log("レベル3: 2手勝利手選択");
+                                    chosenMove = twoMoveWin;
+                                } else {
+                                    var opponent = game.aiPlayer === 1 ? 2 : 1;
+                                    var opponentTwoMoveWin = findTwoMoveWin(opponent);
+                                    
+                                    if (opponentTwoMoveWin) {
+                                        console.log("レベル3: 相手2手勝利阻止");
+                                        chosenMove = opponentTwoMoveWin;
+                                    } else {
+                                        var centerMove = findCenterMove();
+                                        
+                                        if (centerMove) {
+                                            console.log("レベル3: 中央制圧手選択");
+                                            chosenMove = centerMove;
+                                        } else {
+                                            chosenMove = getRandomMove();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error("レベル3AI処理でエラー:", error);
+                        chosenMove = getRandomMove();
+                    }
+                    
+                } else if (aiLevel === 4) {
+                    // レベル4: 高度戦術AI（防御最優先戦略）
+                    console.log("=== レベル4AI動作開始（防御最優先）===");
+                    
+                    try {
+                        // 1. 即座勝利手（勝てるなら勝つ）
+                        console.log("レベル4: 勝利手検索中...");
+                        var winMove = findWinningMove(game.aiPlayer);
+                        
+                        if (winMove) {
+                            console.log("レベル4: 即座勝利手選択");
+                            chosenMove = winMove;
+                        } else {
+                            // 2. 相手の即座勝利阻止（1手勝利防御）
+                            console.log("レベル4: 即座勝利阻止検索中...");
+                            var blockMove = findBlockingMove(game.aiPlayer);
+                            
+                            if (blockMove) {
+                                console.log("レベル4: 相手即座勝利阻止");
+                                chosenMove = blockMove;
+                            } else {
+                                // 3. ★最優先防御★ 4連緊急阻止
+                                console.log("レベル4: 4連緊急阻止検索中...");
+                                var fourRowThreat = findFourInARowThreat(game.aiPlayer);
+                                
+                                if (fourRowThreat) {
+                                    console.log("レベル4: ★緊急★ 4連阻止手選択");
+                                    chosenMove = fourRowThreat;
+                                } else {
+                                    // 4. 3連脅威阻止（地面3連、縦3連など）
+                                    console.log("レベル4: 3連脅威阻止検索中...");
+                                    var threatBlockMove = findThreeInARowThreat(game.aiPlayer);
+                                    
+                                    if (threatBlockMove) {
+                                        console.log("レベル4: 3連脅威阻止手選択");
+                                        chosenMove = threatBlockMove;
+                                    } else {
+                                        // 5. ★厳重監視★ 斜め連続脅威阻止
+                                        console.log("レベル4: 斜め脅威阻止検索中...");
+                                        var diagonalThreat = findDiagonalThreat(game.aiPlayer);
+                                        
+                                        if (diagonalThreat) {
+                                            console.log("レベル4: 斜め脅威阻止手選択");
+                                            chosenMove = diagonalThreat;
+                                        } else {
+                                            // 6. ★予防策★ 2-3手先読み（将来脅威予防）
+                                            console.log("レベル4: 2-3手先読み検索中...");
+                                            var futureThreat = findFutureThreats(game.aiPlayer);
+                                            
+                                            if (futureThreat) {
+                                                console.log("レベル4: 将来脅威予防手選択");
+                                                chosenMove = futureThreat;
+                                            } else {
+                                                // 7. 囲み阻止（自分が囲まれそうな緊急回避）
+                                                console.log("レベル4: 囲み阻止検索中...");
+                                                var antiEncirclementMove = findAntiEncirclementMove(game.aiPlayer);
+                                                
+                                                if (antiEncirclementMove) {
+                                                    console.log("レベル4: 囲み阻止手選択");
+                                                    chosenMove = antiEncirclementMove;
+                                                } else {
+                                                    // 8. 複数脅威作成（攻撃開始）
+                                                    console.log("レベル4: 複数脅威手検索中...");
+                                                    var multipleThreatMove = findMultipleThreatMove(game.aiPlayer);
+                                                    
+                                                    if (multipleThreatMove) {
+                                                        console.log("レベル4: 複数脅威作成手選択");
+                                                        chosenMove = multipleThreatMove;
+                                                    } else {
+                                                        // 9. 囲み戦略（相手を囲む攻撃）
+                                                        console.log("レベル4: 囲み戦略検索中...");
+                                                        var encirclementMove = findEncirclementMove(game.aiPlayer);
+                                                        
+                                                        if (encirclementMove) {
+                                                            console.log("レベル4: 囲み戦略手選択");
+                                                            chosenMove = encirclementMove;
+                                                        } else {
+                                                            // 10. 相手の複数脅威阻止
+                                                            console.log("レベル4: 相手複数脅威阻止検索中...");
+                                                            var blockMultipleThreat = findMultipleThreatBlock(game.aiPlayer);
+                                                            
+                                                            if (blockMultipleThreat) {
+                                                                console.log("レベル4: 相手複数脅威阻止");
+                                                                chosenMove = blockMultipleThreat;
+                                                            } else {
+                                                                // 11. 高脅威手（3連作成など）
+                                                                console.log("レベル4: 高脅威手検索中...");
+                                                                var highThreatMove = findHighThreatMove(game.aiPlayer);
+                                                                
+                                                                if (highThreatMove) {
+                                                                    console.log("レベル4: 高脅威手選択");
+                                                                    chosenMove = highThreatMove;
+                                                                } else {
+                                                                    // 12. 集約戦略（自分のブロックを集約）
+                                                                    console.log("レベル4: 集約戦略検索中...");
+                                                                    var clusterMove = findClusterMove(game.aiPlayer);
+                                                                    
+                                                                    if (clusterMove) {
+                                                                        console.log("レベル4: 集約戦略手選択");
+                                                                        chosenMove = clusterMove;
+                                                                    } else {
+                                                                        // 13. 2手勝利
+                                                                        console.log("レベル4: 2手勝利検索中...");
+                                                                        var twoMoveWin = findTwoMoveWin(game.aiPlayer);
+                                                                        
+                                                                        if (twoMoveWin) {
+                                                                            console.log("レベル4: 2手勝利手選択");
+                                                                            chosenMove = twoMoveWin;
+                                                                        } else {
+                                                                            // 14. 相手の2手勝利阻止
+                                                                            console.log("レベル4: 相手2手勝利阻止検索中...");
+                                                                            var opponent = game.aiPlayer === 1 ? 2 : 1;
+                                                                            var opponentTwoMoveWin = findTwoMoveWin(opponent);
+                                                                            
+                                                                            if (opponentTwoMoveWin) {
+                                                                                console.log("レベル4: 相手2手勝利阻止");
+                                                                                chosenMove = opponentTwoMoveWin;
+                                                                            } else {
+                                                                                // 15. 縦2連+本命攻撃（終盤30個以上限定）
+                                                                                console.log("レベル4: 縦2連+本命攻撃検索中...");
+                                                                                var verticalComboMove = findVerticalDoublePlusThreatMove(game.aiPlayer);
+                                                                                
+                                                                                if (verticalComboMove) {
+                                                                                    console.log("レベル4: 縦2連+本命攻撃選択");
+                                                                                    chosenMove = verticalComboMove;
+                                                                                } else {
+                                                                                    // 16. 相手縦2連阻止（終盤30個以上限定）
+                                                                                    console.log("レベル4: 相手縦2連阻止検索中...");
+                                                                                    var verticalBlockMove = findVerticalDoubleBlock(game.aiPlayer);
+                                                                                    
+                                                                                    if (verticalBlockMove) {
+                                                                                        console.log("レベル4: 相手縦2連阻止選択");
+                                                                                        chosenMove = verticalBlockMove;
+                                                                                    } else {
+                                                                                        // 17. 縦2連作成（終盤30個以上限定）
+                                                                                        console.log("レベル4: 縦2連作成検索中...");
+                                                                                        var verticalDoubleMove = findVerticalDoubleMove(game.aiPlayer);
+                                                                                        
+                                                                                        if (verticalDoubleMove) {
+                                                                                            console.log("レベル4: 縦2連作成手選択");
+                                                                                            chosenMove = verticalDoubleMove;
+                                                                                        } else {
+                                                                                            // 18. 中央制圧
+                                                                                            console.log("レベル4: 中央制圧検索中...");
+                                                                                            var centerMove = findCenterMove();
+                                                                                            
+                                                                                            if (centerMove) {
+                                                                                                console.log("レベル4: 中央制圧手選択");
+                                                                                                chosenMove = centerMove;
+                                                                                            } else {
+                                                                                                // 19. ランダム
+                                                                                                console.log("レベル4: ランダム手選択");
+                                                                                                chosenMove = getRandomMove();
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error("レベル4AI処理でエラー:", error);
+                        chosenMove = getRandomMove();
+                        console.log("レベル4: エラー後のフォールバック");
+                    }
+                    
+                } else if (aiLevel === 5) {
+                    // レベル5: ミニマックス法（破壊的強さ）
+                    console.log("=== レベル5AI動作開始（ミニマックス法）===");
+                    
+                    try {
+                        // ミニマックス法で最適手を計算
+                        chosenMove = findMinimaxMove(game.aiPlayer);
+                        console.log("レベル5: ミニマックス最適手選択", chosenMove);
+                        
+                    } catch (error) {
+                        console.error("レベル5AI処理でエラー:", error);
+                        chosenMove = getRandomMove();
+                        console.log("レベル5: エラー後のフォールバック");
+                    }
+                    
+                } else if (aiLevel === 6) {
+                    // レベル6: ディープラーニング（学習型AI）
+                    console.log("=== レベル6AI動作開始（ディープラーニング）===");
+                    
+                    try {
+                        // モデル初期化チェック
+                        if (!deepLearningAI.model) {
+                            console.log("🧠 初回起動 - モデル初期化中...");
+                            await deepLearningAI.initModel();
+                        }
+                        
+                        // 学習型AIで最適手を予測
+                        chosenMove = await deepLearningAI.predictBestMove();
+                        console.log("レベル6: ディープラーニング最適手選択", chosenMove);
+                        
+                        // 対戦データ記録
+                        if (chosenMove) {
+                            var boardState = deepLearningAI.boardToArray();
+                            deepLearningAI.recordGameMove(boardState, chosenMove, 0);
+                        }
+                        
+                    } catch (error) {
+                        console.error("レベル6AI処理でエラー:", error);
+                        chosenMove = getRandomMove();
+                        console.log("レベル6: エラー後のフォールバック");
+                    }
+                    
+                } else {
+                    // デフォルト: ランダム
+                    chosenMove = getRandomMove();
+                    console.log("デフォルト（ランダム）戦略で手を選択");
+                }
+
+                console.log('AI選択した手:', chosenMove);
+
+                if (chosenMove) {
+                    console.log(`AI配置実行: (${chosenMove[0]}, ${chosenMove[1]})`);
+                    placePiece(chosenMove[0], chosenMove[1], true);
+                    placed++;
+                    setTimeout(placeOneBlock, 600);
+                } else {
+                    console.warn("AIが有効な手を見つけられませんでした");
+                    game.aiThinking = false;
+                }
+            }
+
+            placeOneBlock();
+        }
+
+        // 勝利チェック
+        function checkWin(row, col) {
+            var player = game.grid[row][col];
+            var directions = [
+                [0, 1],  // 横
+                [1, 0],  // 縦
+                [1, 1],  // 斜め右下
+                [1, -1]  // 斜め左下
+            ];
+
+            for (var d = 0; d < directions.length; d++) {
+                var dr = directions[d][0];
+                var dc = directions[d][1];
+                var line = [[row, col]];
+                
+                // 左側チェック
+                for (var i = 1; i < WIN_COUNT; i++) {
+                    var r = row - dr * i;
+                    var c = col - dc * i;
+                    if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
+                        game.grid[r][c] === player) {
+                        line.unshift([r, c]);
+                    } else {
+                        break;
+                    }
+                }
+                
+                // 右側チェック
+                for (var i = 1; i < WIN_COUNT; i++) {
+                    var r = row + dr * i;
+                    var c = col + dc * i;
+                    if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
+                        game.grid[r][c] === player) {
+                        line.push([r, c]);
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (line.length >= WIN_COUNT) {
+                    game.winningCells = line;
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         // アラート表示
@@ -639,582 +2165,74 @@
             }, 2000);
         }
 
-        // 現在のブロック数をカウント
-        function countCurrentBlocks() {
-            var count = 0;
-            for (var row = 0; row < GRID_HEIGHT; row++) {
-                for (var col = 0; col < GRID_WIDTH; col++) {
-                    if (game.grid[row][col] !== 0) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-        function resetFieldVisuals() {
-            const grid = document.getElementById('gameGrid');
-            grid.classList.remove('turn-red', 'turn-blue');
-            grid.style.border = 'none';
-            grid.style.boxShadow = 'none';
-        }
-
-
-        // ターン開始時のタイマー設定
-        function setTurnTimer() {
-            var currentBlocks = countCurrentBlocks();
+        // ★修正版★ ゲーム終了
+        function endGame(winner) {
+            console.log(`ゲーム終了処理開始 - 勝者: ${winner}`);
             
-            if (game.turnCount === 0) {
-                // 先行初手
-                game.timeLeft = 15;
-            } else if (game.turnCount === 1 && currentBlocks === 2) {
-                // 後攻初手（ブロック数2個：中央＋先行1個）
-                game.timeLeft = 30;
+            game.gameActive = false;
+            clearInterval(game.timer);
+            
+            clearWinningCells(); // 勝利ラインをクリア
+            game.aiThinking = false; // AI思考フラグもクリア
+
+            // ★LEVEL6 学習処理★
+            if (game.isAI && aiLevel === 6 && deepLearningAI.model) {
+                console.log("🧠 ディープラーニングAI学習開始...");
+                deepLearningAI.learnFromGame(winner).then(function() {
+                    console.log("📚 学習完了 - AIが経験を積みました");
+                }).catch(function(error) {
+                    console.error("❌ 学習エラー:", error);
+                });
+            }
+
+            var modal = document.getElementById('gameModal');
+            var message = document.getElementById('modalMessage');
+            var title = document.getElementById('modalTitle');
+            var icon = document.getElementById('winnerIcon');
+
+            if (winner === 1) {
+                if (game.isAI && game.aiPlayer === 1) {
+                    if (aiLevel === 6) {
+                        title.textContent = '🧠 学習AI の勝利！';
+                        message.textContent = 'AIがあなたの戦術を学習して勝利しました。再戦でさらに学習します！';
+                    } else {
+                        title.textContent = '🤖 AIの勝利！';
+                        message.textContent = 'ゲームが終了しました。再戦しますか？';
+                    }
+                } else {
+                    title.textContent = '🎉 プレイヤー1の勝利！';
+                    message.textContent = 'ゲームが終了しました。再戦しますか？';
+                }
+                icon.style.background = '#ef4444';
+            } else if (winner === 2) {
+                if (game.isAI && game.aiPlayer === 2) {
+                    if (aiLevel === 6) {
+                        title.textContent = '🧠 学習AI の勝利！';
+                        message.textContent = 'AIがあなたの戦術を学習して勝利しました。再戦でさらに学習します！';
+                    } else {
+                        title.textContent = '🤖 AIの勝利！';
+                        message.textContent = 'ゲームが終了しました。再戦しますか？';
+                    }
+                } else {
+                    title.textContent = '🎉 プレイヤー2の勝利！';
+                    message.textContent = 'ゲームが終了しました。再戦しますか？';
+                }
+                icon.style.background = '#3b82f6';
             } else {
-                // 2ターン目以降
-                game.timeLeft = currentBlocks * 10;
+                title.textContent = '🤝 ゲーム終了';
+                icon.style.background = '#9ca3af';
+                message.textContent = 'ゲームが終了しました。再戦しますか？';
             }
-        }
-      
-      function startTimer() {
-          clearInterval(game.timer);
-          game.timer = setInterval(function() {
-            game.timeLeft--;
-            updateDisplay();
-            if (game.timeLeft <= 0) {
-              clearInterval(game.timer);
-              endGame(game.currentPlayer === 1 ? 2 : 1); // タイムアウトで負け
-            }
-          }, 1000);
-      }
-        
 
-    //マス拡大
-        function extendGrid(direction) {
-            if (direction === 'right') {
-                for (let row = 0; row < GRID_HEIGHT; row++) {
-                    game.grid[row].push(0);
-                }
-                GRID_WIDTH++;
-            } else if (direction === 'left') {
-                for (let row = 0; row < GRID_HEIGHT; row++) {
-                    game.grid[row].unshift(0);
-                }
-                GRID_WIDTH++;
-            } else if (direction === 'top') {
-                const newRow = new Array(GRID_WIDTH).fill(0);
-                game.grid.unshift(newRow);
-                GRID_HEIGHT++;
-            }
-        
-            createGrid();
-            updateGridTemplate(); // ← 必須！
-            updateDisplay();
-        }
-
-
-        function checkAndExtendGrid() {
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                if (game.grid[row][0] !== 0) {
-                    extendGrid('left');
-                    break;
-                }
-            }
-        
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                if (game.grid[row][GRID_WIDTH - 1] !== 0) {
-                    extendGrid('right');
-                    break;
-                }
-            }
-        
-            for (let col = 0; col < GRID_WIDTH; col++) {
-                if (game.grid[0][col] !== 0) {
-                    extendGrid('top');
-                    break;
-                }
-            }
-        }
-
-        function updateGridTemplate() {
-            const grid = document.getElementById('gameGrid');
-            grid.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
-        }
-
-        
-
-        // ピース配置（新仕様：クリックした位置に配置を試みる）
-       f// ===== ステップ4: 元のplacePiece関数の最初に追加してください =====
-
-        function placePiece(row, col) {
-            // エラー対策: try-catchでエラーをキャッチ
-            try {
-                // === 元の処理の前に境界チェックを追加 ===
-                
-                // 1. 位置が範囲内にあるかチェック
-                if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
-                    console.warn(`無効な位置です: (${row}, ${col})`);
-                    return;
-                }
-                
-                // 2. ゲームが進行中かチェック
-                if (!game.gameActive || game.animating || game.remainingBlocks <= 0) {
-                    return;
-                }
-                
-                // 3. AIのターン中に人間がクリックした場合は無視
-                if (game.isAI && game.currentPlayer === 2) {
-                    return;
-                }
-                
-                // === ここから元のplacePiece関数の処理を続ける ===
-                
-                // マスが既に埋まっているかチェック
-                if (game.grid[row][col] !== 0) {
-                    if (!game.isAI || game.currentPlayer !== 2) {
-                        showAlert("そのマスには既にブロックがあります！");
-                    }
-                    return;
-                }
-                
-                // 下に支えがあるかチェック（地面以外の場合）
-                if (row < GRID_HEIGHT - 1 && game.grid[row + 1][col] === 0) {
-                    if (!game.isAI || game.currentPlayer !== 2) {
-                        showAlert("この位置には下に支えがありません！");
-                    }
-                    return;
-                }
-                
-                // 地面の場合は隣接ブロックが必要
-                if (row === GRID_HEIGHT - 1 && !isValidGroundPlacement(col)) {
-                    if (!game.isAI || game.currentPlayer !== 2) {
-                        showAlert("地面に置くには隣接ブロックが必要です！");
-                    }
-                    return;
-                }
-                
-                // === ここから実際にブロックを置く処理 ===
-                
-                game.animating = true; // アニメーション中フラグをON
-                
-                // 対象のマスを取得
-                var cells = document.querySelectorAll('.cell');
-                var cellIndex = row * GRID_WIDTH + col;
-                var targetCell = cells[cellIndex];
-                
-                // アニメーション効果を追加
-                if (targetCell) {
-                    targetCell.classList.add('dropping');
-                }
-                
-                // 0.3秒後にブロックを実際に配置
-                setTimeout(function () {
-                    game.grid[row][col] = game.currentPlayer; // グリッドにブロックを記録
-                    game.remainingBlocks--; // 残りブロック数を減らす
-                    
-                    // 勝利判定
-                    if (checkWin(row, col)) {
-                        game.showingWin = true;
-                        showWinAnimation(function () {
-                            endGame(game.currentPlayer);
-                        });
-                        return;
-                    }
-                    
-                    // このターンのブロックを全て置き終わった場合
-                    if (game.remainingBlocks <= 0) {
-                        setTimeout(function () {
-                            clearInterval(game.timer); // タイマーを停止
-                            
-                            // ターンを交代
-                            game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
-                            game.remainingBlocks = BLOCKS_PER_TURN;
-                            game.turnCount++;
-                            
-                            // 新しいターンのタイマーを開始
-                            setTurnTimer();
-                            startTimer();
-                            applyTurnEffect();
-                            updateDisplay();
-                            
-                            // AIのターンになった場合
-                            if (game.isAI && game.currentPlayer === 2) {
-                                setTimeout(cpuPlay, 800);
-                            }
-                        }, 500);
-                    }
-                    
-                    game.animating = false; // アニメーション終了
-                    updateDisplay(); // 画面を更新
-                    checkAndExtendGrid(); // 必要に応じてグリッドを拡張
-                    
-                }, 300);
-                
-            } catch (error) {
-                // エラーが発生した場合の処理
-                console.error("ブロック配置でエラーが発生しました:", error);
-                game.animating = false; // アニメーションフラグをリセット
-                showAlert("エラーが発生しました。もう一度お試しください。");
-            }
-        }
-
-
-////////////////////////AI関連
-        
-            // 1. ランダムな手を選ぶ関数
-            function getRandomMove() {
-                // 全ての有効な位置を取得
-                const validMoves = getAllValidMoves();
-                
-                // 有効な位置がない場合はnullを返す
-                if (validMoves.length === 0) return null;
-                
-                // ランダムに1つ選ぶ
-                const randomIndex = Math.floor(Math.random() * validMoves.length);
-                return validMoves[randomIndex];
-            }
+            modal.style.display = 'block';
             
-            // 2. getRandomValidMoveという名前でも同じ機能を提供
-            function getRandomValidMove() {
-                return getRandomMove(); // 上の関数と同じ
-            }
-            
-            // 3. プレイヤーにとって最良の手を探す関数
-            function findBestMoveForPlayer(player) {
-                // まず勝てる手があるか確認
-                const winMove = findWinningMove(player);
-                if (winMove) return winMove; // 勝てるならその手を返す
-                
-                // 勝てない場合、相手の勝利を防ぐ手があるか確認
-                const opponent = player === 1 ? 2 : 1; // 相手のプレイヤー番号
-                const blockMove = findWinningMove(opponent);
-                if (blockMove) return blockMove; // 相手の勝利を防げるならその手を返す
-                
-                // どちらでもない場合はnullを返す
-                return null;
-            }
-        
-        // AI（CPU）のプレイ関数
-           function cpuPlay() {
-            // ゲームが終了していたり、AIのターンでない場合は何もしない
-            if (!game.gameActive || game.currentPlayer !== 2 || !game.isAI || game.showingWin) {
-                return;
-            }
-            
-            // ブロックが残っていない場合は、新しいターン用にブロック数をリセット
-            if (game.remainingBlocks <= 0) {
-                game.remainingBlocks = BLOCKS_PER_TURN;
-            }
-            
-            let placed = 0; // 今のターンで置いたブロック数
-            const maxBlocks = game.remainingBlocks; // このターンで置けるブロック数
-            
-            // 1つずつブロックを置く関数
-            function placeOneBlock() {
-                // 全部置き終わったか、ゲームが終了した場合は停止
-                if (placed >= maxBlocks || !game.gameActive || game.currentPlayer !== 2) {
-                    return;
-                }
-                
-                let chosenMove = null; // AIが選んだ手
-                
-                // AIのレベルに応じて異なる戦略を使う
-                if (aiLevel === 1) {
-                    // レベル1: 完全ランダム
-                    chosenMove = getRandomMove();
-                } else if (aiLevel === 2) {
-                    // レベル2: 勝てる手があれば選ぶ、なければランダム
-                    chosenMove = findWinningMove(2) || getRandomMove();
-                } else if (aiLevel === 3) {
-                    // レベル3: 攻撃と防御を考える
-                    chosenMove = cpuPlayLevel3Move();
-                } else if (aiLevel === 4) {
-                    // レベル4: より高度な戦略
-                    chosenMove = cpuPlayLevel4Move();
-                } else {
-                    // 不明なレベルの場合はランダム
-                    chosenMove = getRandomMove();
-                }
-                
-                // 選んだ手が有効な場合のみ実行
-                if (chosenMove) {
-                    placePiece(chosenMove[0], chosenMove[1]); // ブロックを置く
-                    placed++; // 置いたブロック数を増やす
-                    
-                    // 0.5秒後に次のブロックを置く（人間が見やすくするため）
-                    setTimeout(placeOneBlock, 500);
-                } else {
-                    // 有効な手がない場合（通常は起こらない）
-                    console.warn("AIが有効な手を見つけられませんでした");
-                }
-            }
-            
-            // ブロック配置を開始
-            placeOneBlock();
-        }
-        function getAllValidMoves() {
-            const validMoves = [];
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                for (let col = 0; col < GRID_WIDTH; col++) {
-                    if (game.grid[row][col] !== 0) continue;
-                    const hasSupport = (row === GRID_HEIGHT - 1) || (game.grid[row + 1][col] !== 0);
-                    const valid = (row !== GRID_HEIGHT - 1) || isValidGroundPlacement(col);
-                    if (hasSupport && valid) {
-                        validMoves.push([row, col]);
-                    }
-                }
-            }
-            return validMoves;
+            console.log("ゲーム終了モーダル表示完了");
         }
 
-
-
-        //CPUレベル2
-                function findWinningMove(player) {
-            const directions = [
-                [0, 1],  // 横
-                [1, 0],  // 縦
-                [1, 1],  // 斜め右下
-                [1, -1]  // 斜め左下
-            ];
-        
-            for (let row = 0; row < GRID_HEIGHT; row++) {
-                for (let col = 0; col < GRID_WIDTH; col++) {
-                    if (game.grid[row][col] !== 0) continue;
-        
-                    const hasSupport = (row === GRID_HEIGHT - 1) || (game.grid[row + 1][col] !== 0);
-                    const valid = (row !== GRID_HEIGHT - 1) || isValidGroundPlacement(col);
-                    if (!hasSupport || !valid) continue;
-        
-                    // 仮に置いてみる
-                    game.grid[row][col] = player;
-                    const win = checkWin(row, col);
-                    game.grid[row][col] = 0; // 元に戻す
-        
-                    if (win) return [row, col];
-                }
-            }
-        
-            return null;
-        }
-        
-                function evaluateMove(grid, row, col, player) {
-            let score = 0;
-            const directions = [
-                [0, 1],  [1, 0],  [1, 1],  [1, -1]
-            ];
-        
-            for (let [dr, dc] of directions) {
-                let count = 1;
-        
-                // 正方向
-                for (let i = 1; i < 5; i++) {
-                    const r = row + dr * i;
-                    const c = col + dc * i;
-                    if (grid[r] && grid[r][c] === player) count++;
-                    else break;
-                }
-        
-                // 負方向
-                for (let i = 1; i < 5; i++) {
-                    const r = row - dr * i;
-                    const c = col - dc * i;
-                    if (grid[r] && grid[r][c] === player) count++;
-                    else break;
-                }
-        
-                // 得点加算（連続数に応じて）
-                if (count >= 5) score += 10000;
-                else score += count * count; // 例：3連=9点
-            }
-        
-            return score;
-        }
-        
-              function cpuPlayLevel3Move() {
-            // 1. まず自分（AI）が勝てる手があるか確認
-            const winMove = findBestMoveForPlayer(2); // 2はAIの番号
-            if (winMove) return winMove;
-            
-            // 2. 勝てない場合、相手の勝利を防ぐ手があるか確認
-            const blockMove = findBestMoveForPlayer(1); // 1は人間プレイヤーの番号
-            if (blockMove) return blockMove;
-            
-            // 3. どちらでもない場合はランダムに選ぶ
-            return getRandomMove();
-        }
-        
-        // cpuPlayLevel4Move関数も同様に修正
-        function cpuPlayLevel4Move() {
-            // レベル4では少し賢く、複数の手を比較する
-            const validMoves = getAllValidMoves();
-            if (validMoves.length === 0) return null;
-            
-            let bestMove = null;
-            let bestScore = -999999; // とても小さい数から始める
-            
-            // 全ての可能な手を試して、一番良い手を選ぶ
-            for (let i = 0; i < validMoves.length; i++) {
-                const move = validMoves[i];
-                const row = move[0];
-                const col = move[1];
-                
-                // この位置に置いた時の点数を計算
-                game.grid[row][col] = 2; // 仮に置いてみる
-                let score = evaluateMove(game.grid, row, col, 2);
-                game.grid[row][col] = 0; // 元に戻す
-                
-                // より高い点数なら、その手を記録
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = move;
-                }
-            }
-            
-            return bestMove;
-        }
-    ///LEVEL5
-        function cpuPlayLevel5Move() {
-            return cpuPlayLevel3Move(); // とりあえず同じロジック
+        function endGameNow() {
+            endGame(0);
         }
 
-
-
-
-        // 落下位置計算
-        function calculateDrop(col) {
-            for (var row = GRID_HEIGHT - 1; row >= 0; row--) {
-                if (game.grid[row][col] === 0) {
-                    return row;
-                }
-            }
-            return -1; // 列が満杯
-        }
-
-        // 地面レベルの配置チェック
-        function isValidGroundPlacementAt(row, col) {
-            if (row !== GRID_HEIGHT - 1) return true; // 地面以外はOK
-        
-            // 地面の場合、隣接ブロックが必要
-            var left = col - 1;
-            var right = col + 1;
-        
-            if (left >= 0 && game.grid[row][left] !== 0) return true;
-            if (right < GRID_WIDTH && game.grid[row][right] !== 0) return true;
-        
-            return false;
-        }
-
-        function isValidGroundPlacement(col) {
-            const row = GRID_HEIGHT - 1;
-            const left = col - 1;
-            const right = col + 1;
-            return (left >= 0 && game.grid[row][left] !== 0) || 
-                   (right < GRID_WIDTH && game.grid[row][right] !== 0);
-        }
-
-
-
-
-        // 勝利チェック（改良版 - 連続するすべてのセルを記録）
-        function checkWin(row, col) {
-            var player = game.grid[row][col];
-            var directions = [
-                [0, 1],  // 横
-                [1, 0],  // 縦
-                [1, 1],  // 斜め右下
-                [1, -1]  // 斜め左下
-            ];
-
-            for (var d = 0; d < directions.length; d++) {
-                var dr = directions[d][0];
-                var dc = directions[d][1];
-                var line = [[row, col]]; // 中心セルから始める
-                
-                // 左側（負方向）をチェック
-                for (var i = 1; i < WIN_COUNT; i++) {
-                    var r = row - dr * i;
-                    var c = col - dc * i;
-                    if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
-                        game.grid[r][c] === player) {
-                        line.unshift([r, c]); // 配列の前に追加
-                    } else {
-                        break;
-                    }
-                }
-                
-                // 右側（正方向）をチェック
-                for (var i = 1; i < WIN_COUNT; i++) {
-                    var r = row + dr * i;
-                    var c = col + dc * i;
-                    if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
-                        game.grid[r][c] === player) {
-                        line.push([r, c]); // 配列の後に追加
-                    } else {
-                        break;
-                    }
-                }
-                
-                if (line.length >= WIN_COUNT) {
-                    game.winningCells = line;
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-
-        // 勝利アニメーション（10秒後に点滅終了、その後ゲーム終了）
-        function showWinAnimation(callback) {
-            updateDisplay(); // 点滅表示を反映
-            
-            // 10秒後に点滅クラスを解除
-            setTimeout(function() {
-                var cells = document.querySelectorAll('.cell');
-                for (var w = 0; w < game.winningCells.length; w++) {
-                    var r = game.winningCells[w][0];
-                    var c = game.winningCells[w][1];
-                    var idx = r * GRID_WIDTH + c;
-                     if (cells[idx]) {
-            cells[idx].classList.remove('winning');
-          }
-        }
-
-        // 勝利表示を出してゲーム終了
-        endGame(game.currentPlayer);
-        if (typeof callback === 'function') callback();
-      }, 10000); // 10秒（10000ミリ秒）
-    }
-
-    function endGame(winner) {
-      game.gameActive = false;
-      clearInterval(game.timer);
-      resetFieldVisuals();
-
-      var modal = document.getElementById('gameModal');
-      var message = document.getElementById('modalMessage');
-      var title = document.getElementById('modalTitle');
-      var icon = document.getElementById('winnerIcon');
-
-      if (winner === 1) {
-        title.textContent = '🎉 プレイヤー1の勝利！';
-        icon.style.background = '#ef4444';
-      } else if (winner === 2) {
-        title.textContent = game.isAI ? '🤖 AIの勝利！' : '🎉 プレイヤー2の勝利！';
-        icon.style.background = '#3b82f6';
-      } else {
-        title.textContent = '引き分け';
-        icon.style.background = '#ccc';
-      }
-
-      message.textContent = 'ゲームが終了しました。再戦しますか？';
-      modal.style.display = 'block';
-    }
-
-    function endGameNow() {
-      endGame(0); // 引き分けとして処理
-      resetFieldVisuals();
-    }
-
-  </script>
+    </script>
 </body>
 </html>
