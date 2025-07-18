@@ -337,7 +337,6 @@
                     <option value="3">Lv3（攻防型）</option>
                     <option value="4">Lv4（高度AI）</option>
                     <option value="5">Lv5（ミニマックス - 破壊的強さ）</option>
-                    <option value="6">Lv6（学習型AI - あなた専用）</option>
                 </select>
             </div>
             
@@ -376,7 +375,6 @@
                 <div class="game-info">
                     <div>現在のターン: <span id="currentPlayer">プレイヤー1</span></div>
                     <div>残りブロック: <span id="remainingBlocks">1</span>/<span id="maxBlocks">1</span></div>
-                    <div id="aiStats" style="color: #8b5cf6; font-weight: bold;"></div>
                 </div>
             </div>
 
@@ -399,7 +397,6 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
     <script>
         // ゲーム設定
         var GRID_WIDTH = 15;
@@ -2051,33 +2048,6 @@
                         console.log("レベル5: エラー後のフォールバック");
                     }
                     
-                } else if (aiLevel === 6) {
-                    // レベル6: ディープラーニング（学習型AI）
-                    console.log("=== レベル6AI動作開始（ディープラーニング）===");
-                    
-                    try {
-                        // モデル初期化チェック
-                        if (!deepLearningAI.model) {
-                            console.log("🧠 初回起動 - モデル初期化中...");
-                            await deepLearningAI.initModel();
-                        }
-                        
-                        // 学習型AIで最適手を予測
-                        chosenMove = await deepLearningAI.predictBestMove();
-                        console.log("レベル6: ディープラーニング最適手選択", chosenMove);
-                        
-                        // 対戦データ記録
-                        if (chosenMove) {
-                            var boardState = deepLearningAI.boardToArray();
-                            deepLearningAI.recordGameMove(boardState, chosenMove, 0);
-                        }
-                        
-                    } catch (error) {
-                        console.error("レベル6AI処理でエラー:", error);
-                        chosenMove = getRandomMove();
-                        console.log("レベル6: エラー後のフォールバック");
-                    }
-                    
                 } else {
                     // デフォルト: ランダム
                     chosenMove = getRandomMove();
@@ -2175,16 +2145,6 @@
             clearWinningCells(); // 勝利ラインをクリア
             game.aiThinking = false; // AI思考フラグもクリア
 
-            // ★LEVEL6 学習処理★
-            if (game.isAI && aiLevel === 6 && deepLearningAI.model) {
-                console.log("🧠 ディープラーニングAI学習開始...");
-                deepLearningAI.learnFromGame(winner).then(function() {
-                    console.log("📚 学習完了 - AIが経験を積みました");
-                }).catch(function(error) {
-                    console.error("❌ 学習エラー:", error);
-                });
-            }
-
             var modal = document.getElementById('gameModal');
             var message = document.getElementById('modalMessage');
             var title = document.getElementById('modalTitle');
@@ -2192,38 +2152,24 @@
 
             if (winner === 1) {
                 if (game.isAI && game.aiPlayer === 1) {
-                    if (aiLevel === 6) {
-                        title.textContent = '🧠 学習AI の勝利！';
-                        message.textContent = 'AIがあなたの戦術を学習して勝利しました。再戦でさらに学習します！';
-                    } else {
-                        title.textContent = '🤖 AIの勝利！';
-                        message.textContent = 'ゲームが終了しました。再戦しますか？';
-                    }
+                    title.textContent = '🤖 AIの勝利！';
                 } else {
                     title.textContent = '🎉 プレイヤー1の勝利！';
-                    message.textContent = 'ゲームが終了しました。再戦しますか？';
                 }
                 icon.style.background = '#ef4444';
             } else if (winner === 2) {
                 if (game.isAI && game.aiPlayer === 2) {
-                    if (aiLevel === 6) {
-                        title.textContent = '🧠 学習AI の勝利！';
-                        message.textContent = 'AIがあなたの戦術を学習して勝利しました。再戦でさらに学習します！';
-                    } else {
-                        title.textContent = '🤖 AIの勝利！';
-                        message.textContent = 'ゲームが終了しました。再戦しますか？';
-                    }
+                    title.textContent = '🤖 AIの勝利！';
                 } else {
                     title.textContent = '🎉 プレイヤー2の勝利！';
-                    message.textContent = 'ゲームが終了しました。再戦しますか？';
                 }
                 icon.style.background = '#3b82f6';
             } else {
                 title.textContent = '🤝 ゲーム終了';
                 icon.style.background = '#9ca3af';
-                message.textContent = 'ゲームが終了しました。再戦しますか？';
             }
 
+            message.textContent = 'ゲームが終了しました。再戦しますか？';
             modal.style.display = 'block';
             
             console.log("ゲーム終了モーダル表示完了");
