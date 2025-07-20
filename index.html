@@ -145,7 +145,7 @@
             overflow-x: auto;
         }
 
-        .grid {
+       .grid {
             display: inline-grid;
             grid-template-columns: repeat(15, 32px);
             gap: 2px;
@@ -290,23 +290,232 @@
             100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
 
-        @media (max-width: 600px) {
+        /* ターン交代アニメーション */
+        @keyframes turnChange {
+            0% { 
+                transform: scale(1);
+                background-color: transparent;
+            }
+            25% { 
+                transform: scale(1.1);
+                background-color: rgba(251, 191, 36, 0.3);
+                border-radius: 8px;
+            }
+            50% { 
+                transform: scale(1.15);
+                background-color: rgba(251, 191, 36, 0.5);
+            }
+            75% { 
+                transform: scale(1.1);
+                background-color: rgba(251, 191, 36, 0.3);
+            }
+            100% { 
+                transform: scale(1);
+                background-color: transparent;
+            }
+        }
+
+        @keyframes turnNotification {
+            0% { 
+                opacity: 0;
+                transform: translateY(-20px) scale(0.8);
+            }
+            20% { 
+                opacity: 1;
+                transform: translateY(0) scale(1.1);
+            }
+            80% { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% { 
+                opacity: 0;
+                transform: translateY(-10px) scale(0.9);
+            }
+        }
+
+        .player.turn-change {
+            animation: turnChange 1.2s ease-out;
+        }
+
+        .turn-notification {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 18px;
+            z-index: 1500;
+            animation: turnNotification 1.5s ease-out;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .turn-notification.ai-turn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        /* プレイヤー名のフラッシュ効果強化 */
+        .player.flash {
+            animation: turnFlash 1s ease-out;
+            position: relative;
+        }
+
+        @keyframes turnFlash {
+            0% { 
+                transform: scale(1); 
+                color: inherit;
+                text-shadow: none;
+            }
+            25% { 
+                transform: scale(1.2); 
+                color: #fbbf24;
+                text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+            }
+            50% { 
+                transform: scale(1.1); 
+                color: #f59e0b;
+                text-shadow: 0 0 15px rgba(245, 158, 11, 0.9);
+            }
+            75% { 
+                transform: scale(1.15); 
+                color: #fbbf24;
+                text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+            }
+            100% { 
+                transform: scale(1); 
+                color: inherit;
+                text-shadow: none;
+            }
+        }
+        
+        /* タブレット対応 */
+        @media (max-width: 768px) {
+            .grid-container {
+                padding: 15px 10px;
+            }
+            
             .grid {
-                grid-template-columns: repeat(15, 20px);
+                grid-template-columns: repeat(15, 24px);
+                gap: 1px;
+                padding: 8px;
             }
+            
             .cell {
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
+                width: 24px;
+                height: 24px;
+                font-size: 14px;
             }
+            
             .game-status {
                 flex-direction: column;
                 gap: 15px;
             }
+            
             .players {
                 gap: 20px;
             }
         }
+
+        /* スマホ対応 */
+        @media (max-width: 600px) {
+            .grid-container {
+                padding: 10px 5px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(15, 18px);
+                gap: 1px;
+                padding: 6px;
+                margin: 0 auto;
+            }
+            
+            .cell {
+                width: 18px;
+                height: 18px;
+                font-size: 11px;
+                border-width: 2px;
+            }
+            
+            .game-status {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .players {
+                gap: 15px;
+                justify-content: center;
+            }
+            
+            .game-info {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+        }
+
+        /* 小さいスマホ対応 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .grid-container {
+                padding: 8px 2px;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(15, 16px);
+                gap: 1px;
+                padding: 4px;
+                font-size: 10px;
+            }
+            
+            .cell {
+                width: 16px;
+                height: 16px;
+                font-size: 10px;
+                border-width: 1px;
+            }
+            
+            .game-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            
+            .game-header h2 {
+                font-size: 1.5em;
+                margin: 0;
+            }
+            
+            .players {
+                flex-direction: row;
+                gap: 10px;
+            }
+            
+            .player {
+                font-size: 14px;
+            }
+            
+            .timer {
+                font-size: 20px;
+            }
+        }
+
+        
 
         /* LEVEL6専用スタイル */
         .ml-container {
@@ -464,6 +673,7 @@
                     <div class="progress-fill" id="mlProgress" style="width: 0%"></div>
                 </div>
                 
+              
                 <div class="ml-stats">
                     <div class="stat-item">
                         <span class="stat-value" id="gamesCount">0</span>
@@ -479,13 +689,31 @@
                     </div>
                     <div class="stat-item">
                         <span class="stat-value" id="learningStage">準備中</span>
-                        <span>学習段階</span>
+                        <span>成長段階</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="latestLoss">---</span>
+                        <span>学習誤差</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="avgReward">---</span>
+                        <span>平均報酬</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="evolutionTrend">準備中</span>
+                        <span>進化傾向</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="memoryCount">0</span>
+                        <span>記憶数</span>
                     </div>
                 </div>
                 
-                <div class="ml-controls">
+               <div class="ml-controls">
                     <button class="ml-btn" id="resetMLBtn" onclick="resetMLAI()">AIリセット</button>
                     <button class="ml-btn" id="exportMLBtn" onclick="exportMLData()">データ出力</button>
+                    <button class="ml-btn" id="showGraphBtn" onclick="showLearningGraph()">学習グラフ</button>
+                    <button class="ml-btn" id="saveMLBtn" onclick="saveMLManually()">手動保存</button>
                 </div>
             </div>
 
@@ -592,6 +820,10 @@
         };
 
         // LEVEL6 機械学習AI
+        // LEVEL6 機械学習AI
+        // LEVEL6 機械学習AI
+      // LEVEL6 機械学習AI 実学習版（本当に学習する）
+      // LEVEL6 機械学習AI 安定修正版（エラー完全解決）
         class Level6AI {
             constructor() {
                 this.isInitialized = false;
@@ -599,25 +831,99 @@
                 this.model = null;
                 this.memory = [];
                 this.gamesPlayed = 0;
+                this.wins = 0;
                 this.winRate = 0;
                 this.epsilon = 1.0;
                 this.epsilonMin = 0.1;
-                this.epsilonDecay = 0.995;
+                this.epsilonDecay = 0.99;
                 this.maxMemory = 500;
-                this.batchSize = 8;
-                this.trainingFreq = 5;
+                this.batchSize = 16;
+                
+                // ターン管理
+                this.currentTurn = null;
+                this.gameExperiences = [];
+                
+                // 統計・可視化
+                this.lossHistory = [];
+                this.winRateHistory = [];
+                this.rewardHistory = [];
+                this.trainingCount = 0;
+                
+                // 保存キー
+                this.modelKey = 'localstorage://dropfive-ai-lv6-stable';
+                this.statsKey = 'dropfive-ai-lv6-stable-stats';
+                
+                console.log("🧠 安定版Level6AI初期化開始");
             }
 
             async initializeModel() {
                 try {
-                    this.showStatus('loading', 'ニューラルネットワーク構築中...');
+                    this.showStatus('loading', '安定版AI初期化中...');
+                    this.updateProgress(20);
                     
+                    // 保存されたモデルの読み込み
+                    await this.loadModel();
+                    
+                    if (!this.model) {
+                        this.showStatus('loading', '新規モデル構築中...');
+                        this.updateProgress(50);
+                        this.createStableModel();
+                        console.log("🧠 新規モデル構築完了");
+                    } else {
+                        console.log("📥 保存済みモデル読み込み完了");
+                    }
+                    
+                    this.updateProgress(80);
+                    
+                    // 統計データ読み込み
+                    this.loadStatistics();
+                    console.log("📊 統計データ読み込み完了");
+
+                    this.isInitialized = true;
+                    this.showStatus('ready', '安定版AI準備完了');
+                    this.updateProgress(100);
+                    
+                    // UI更新を最後に実行
+                    this.updateUI();
+                    
+                    console.log("✅ 安定版Level6AI初期化完了");
+                    
+                } catch (error) {
+                    console.error("安定版AI初期化エラー:", error);
+                    console.error("エラー詳細:", error.message || "詳細不明");
+                    this.showStatus('error', 'AI初期化失敗');
+                    
+                    // 最小限のフォールバック
+                    try {
+                        this.createMinimalModel();
+                        this.isInitialized = true;
+                        this.showStatus('ready', '最小版AI準備完了');
+                        console.log("⚠️ 最小モデルで動作開始");
+                    } catch (fallbackError) {
+                        console.error("フォールバック失敗:", fallbackError);
+                        this.showStatus('error', 'AI完全失敗');
+                    }
+                }
+            }
+
+            createStableModel() {
+                try {
                     this.model = tf.sequential({
                         layers: [
-                            tf.layers.dense({ inputShape: [180], units: 64, activation: 'relu' }),
+                            tf.layers.dense({ 
+                                inputShape: [180], 
+                                units: 128, 
+                                activation: 'relu'
+                            }),
                             tf.layers.dropout({ rate: 0.3 }),
-                            tf.layers.dense({ units: 32, activation: 'relu' }),
-                            tf.layers.dense({ units: 180, activation: 'linear' })
+                            tf.layers.dense({ 
+                                units: 64, 
+                                activation: 'relu'
+                            }),
+                            tf.layers.dense({ 
+                                units: 180, 
+                                activation: 'linear'
+                            })
                         ]
                     });
 
@@ -625,15 +931,352 @@
                         optimizer: tf.train.adam(0.001),
                         loss: 'meanSquaredError'
                     });
+                } catch (error) {
+                    console.error("安定モデル作成エラー:", error);
+                    throw error;
+                }
+            }
 
-                    this.isInitialized = true;
-                    this.showStatus('ready', 'LEVEL6 AI 準備完了');
-                    this.updateProgress(100);
+            createMinimalModel() {
+                this.model = tf.sequential({
+                    layers: [
+                        tf.layers.dense({ 
+                            inputShape: [180], 
+                            units: 64, 
+                            activation: 'relu'
+                        }),
+                        tf.layers.dense({ 
+                            units: 180, 
+                            activation: 'linear'
+                        })
+                    ]
+                });
+
+                this.model.compile({
+                    optimizer: 'adam',
+                    loss: 'meanSquaredError'
+                });
+            }
+
+            async loadModel() {
+                try {
+                    this.model = await tf.loadLayersModel(this.modelKey);
+                    console.log("📥 保存済みモデル読み込み成功");
+                } catch (error) {
+                    console.log("📝 新規モデル作成");
+                    this.model = null;
+                }
+            }
+
+            async saveModel() {
+                if (this.model && this.isInitialized) {
+                    try {
+                        await this.model.save(this.modelKey);
+                        console.log("💾 モデル保存完了");
+                    } catch (error) {
+                        console.error("💾 モデル保存エラー:", error);
+                    }
+                }
+            }
+
+            loadStatistics() {
+                try {
+                    const saved = localStorage.getItem(this.statsKey);
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        this.gamesPlayed = data.gamesPlayed || 0;
+                        this.wins = data.wins || 0;
+                        this.winRate = data.winRate || 0;
+                        this.epsilon = data.epsilon || 1.0;
+                        this.lossHistory = data.lossHistory || [];
+                        this.winRateHistory = data.winRateHistory || [];
+                        this.trainingCount = data.trainingCount || 0;
+                        console.log(`📊 統計読み込み: ${this.gamesPlayed}戦, 勝率${(this.winRate*100).toFixed(1)}%`);
+                    }
+                } catch (error) {
+                    console.error("統計読み込みエラー:", error);
+                    // エラーでも続行
+                    this.gamesPlayed = 0;
+                    this.wins = 0;
+                    this.winRate = 0;
+                }
+            }
+
+            saveStatistics() {
+                try {
+                    const data = {
+                        gamesPlayed: this.gamesPlayed,
+                        wins: this.wins,
+                        winRate: this.winRate,
+                        epsilon: this.epsilon,
+                        lossHistory: this.lossHistory.slice(-100),
+                        winRateHistory: this.winRateHistory.slice(-100),
+                        trainingCount: this.trainingCount
+                    };
+                    localStorage.setItem(this.statsKey, JSON.stringify(data));
+                } catch (error) {
+                    console.error("統計保存エラー:", error);
+                }
+            }
+
+            startGame(gameState, currentPlayer) {
+                this.gameExperiences = [];
+                console.log(`🎮 ゲーム開始 - プレイヤー${currentPlayer}`);
+            }
+
+            startTurn(gameState, currentPlayer) {
+                this.currentTurn = {
+                    player: currentPlayer,
+                    startState: this.encodeState(gameState, currentPlayer),
+                    actions: [],
+                    rewards: []
+                };
+                console.log(`🎯 ターン開始 - プレイヤー${currentPlayer}`);
+            }
+
+            recordAction(action, gameState, currentPlayer) {
+                if (this.currentTurn && this.currentTurn.player === currentPlayer) {
+                    this.currentTurn.actions.push(action);
+                    
+                    const immediateReward = this.calculateImmediateReward(gameState, currentPlayer, action);
+                    this.currentTurn.rewards.push(immediateReward);
+                    
+                    console.log(`📝 行動記録 ${this.currentTurn.actions.length}/2: (${action[0]}, ${action[1]}) 報酬:${immediateReward.toFixed(3)}`);
+                }
+            }
+
+            endTurn(finalGameState, finalResult) {
+                if (!this.currentTurn) return;
+                
+                if (this.currentTurn.actions.length > 0) {
+                    const experience = {
+                        state: this.currentTurn.startState,
+                        actions: this.currentTurn.actions.slice(),
+                        immediateRewards: this.currentTurn.rewards.slice(),
+                        player: this.currentTurn.player,
+                        timestamp: Date.now()
+                    };
+                    
+                    this.gameExperiences.push(experience);
+                    console.log(`📋 ターン経験保存: ${this.currentTurn.actions.length}手, 累計報酬:${this.currentTurn.rewards.reduce((a,b)=>a+b,0).toFixed(3)}`);
+                }
+
+                this.currentTurn = null;
+            }
+
+            calculateImmediateReward(gameState, currentPlayer, action) {
+                let reward = 0;
+                const opponent = currentPlayer === 1 ? 2 : 1;
+                const [row, col] = action;
+                
+                // 連結数ボーナス
+                gameState.grid[row][col] = currentPlayer;
+                const myConnections = this.countConnections(gameState, row, col, currentPlayer);
+                
+                if (myConnections >= 5) {
+                    reward += 10.0;  // 勝利確定
+                } else if (myConnections >= 4) {
+                    reward += 3.0;   // 4連
+                } else if (myConnections >= 3) {
+                    reward += 1.0;   // 3連
+                } else if (myConnections >= 2) {
+                    reward += 0.3;   // 2連
+                }
+                
+                gameState.grid[row][col] = 0;
+                
+                // 相手阻止ボーナス
+                gameState.grid[row][col] = opponent;
+                const opponentConnections = this.countConnections(gameState, row, col, opponent);
+                
+                if (opponentConnections >= 5) {
+                    reward += 8.0;   // 相手勝利阻止
+                } else if (opponentConnections >= 4) {
+                    reward += 2.0;   // 相手4連阻止
+                } else if (opponentConnections >= 3) {
+                    reward += 0.5;   // 相手3連阻止
+                }
+                
+                gameState.grid[row][col] = 0;
+                
+                // 中央優位
+                const centerCol = Math.floor(GRID_WIDTH / 2);
+                const distanceFromCenter = Math.abs(col - centerCol);
+                reward += Math.max(0, 0.1 - distanceFromCenter * 0.01);
+                
+                return reward;
+            }
+
+            countConnections(gameState, row, col, player) {
+                const directions = [[0,1], [1,0], [1,1], [1,-1]];
+                let maxConnection = 1;
+                
+                for (const [dr, dc] of directions) {
+                    let count = 1;
+                    
+                    for (let i = 1; i < 5; i++) {
+                        const r = row + dr * i;
+                        const c = col + dc * i;
+                        if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
+                            gameState.grid[r] && gameState.grid[r][c] === player) {
+                            count++;
+                        } else break;
+                    }
+                    
+                    for (let i = 1; i < 5; i++) {
+                        const r = row - dr * i;
+                        const c = col - dc * i;
+                        if (r >= 0 && r < GRID_HEIGHT && c >= 0 && c < GRID_WIDTH && 
+                            gameState.grid[r] && gameState.grid[r][c] === player) {
+                            count++;
+                        } else break;
+                    }
+                    
+                    maxConnection = Math.max(maxConnection, count);
+                }
+                
+                return maxConnection;
+            }
+
+            async onGameEnd(result, aiPlayer) {
+                this.gamesPlayed++;
+                
+                if (result === 'win') {
+                    this.wins++;
+                }
+                
+                this.winRate = this.wins / this.gamesPlayed;
+                this.winRateHistory.push(this.winRate);
+                
+                console.log(`🏁 ゲーム終了: ${result} (${this.gamesPlayed}戦目, 勝率${(this.winRate*100).toFixed(1)}%)`);
+                
+                // 最終報酬設定
+                this.assignFinalRewards(result, aiPlayer);
+                
+                // 学習実行
+                await this.trainAfterGame();
+                
+                // UI更新
+                this.updateUI();
+            }
+
+            assignFinalRewards(result, aiPlayer) {
+                if (this.gameExperiences.length === 0) {
+                    console.log("⚠️ 学習用経験データなし");
+                    return;
+                }
+                
+                let finalReward = 0;
+                if (result === 'win') {
+                    finalReward = 5.0;
+                } else if (result === 'lose') {
+                    finalReward = -3.0;
+                } else {
+                    finalReward = 0.0;
+                }
+                
+                console.log(`🎖️ 最終報酬設定: ${finalReward} (結果: ${result})`);
+                
+                for (let exp of this.gameExperiences) {
+                    if (exp.player === aiPlayer) {
+                        const totalReward = exp.immediateRewards.reduce((a, b) => a + b, 0) + finalReward;
+                        
+                        const finalExperience = {
+                            state: exp.state,
+                            actions: exp.actions,
+                            reward: totalReward,
+                            timestamp: exp.timestamp
+                        };
+                        
+                        this.memory.push(finalExperience);
+                        console.log(`💾 経験保存: ${exp.actions.length}手, 総報酬:${totalReward.toFixed(3)}`);
+                    }
+                }
+                
+                while (this.memory.length > this.maxMemory) {
+                    this.memory.shift();
+                }
+                
+                console.log(`📊 現在の経験数: ${this.memory.length}/${this.maxMemory}`);
+            }
+
+            async trainAfterGame() {
+                if (this.memory.length < this.batchSize || !this.isTraining) {
+                    console.log(`⏸️ 学習スキップ: 経験数${this.memory.length} < 必要数${this.batchSize}`);
+                    return;
+                }
+
+                try {
+                    this.showStatus('training', '学習実行中...');
+                    this.trainingCount++;
+                    
+                    console.log(`🧠 学習開始 ${this.trainingCount}回目`);
+                    
+                    const batch = this.sampleBatch();
+                    const states = batch.map(exp => exp.state);
+                    const targets = this.calculateTargets(batch);
+
+                    const statesTensor = tf.tensor2d(states);
+                    const targetsTensor = tf.tensor2d(targets);
+
+                    const history = await this.model.fit(statesTensor, targetsTensor, {
+                        epochs: 2,
+                        verbose: 0,
+                        batchSize: this.batchSize
+                    });
+
+                    const loss = history.history.loss[history.history.loss.length - 1];
+                    this.lossHistory.push(loss);
+                    
+                    console.log(`📈 学習完了! Loss: ${loss.toFixed(4)}, Epsilon: ${(this.epsilon*100).toFixed(1)}%`);
+
+                    statesTensor.dispose();
+                    targetsTensor.dispose();
+
+                    if (this.epsilon > this.epsilonMin) {
+                        this.epsilon *= this.epsilonDecay;
+                    }
+
+                    if (this.gamesPlayed % 5 === 0) {
+                        await this.saveModel();
+                        this.saveStatistics();
+                        console.log("💾 定期保存完了");
+                    }
+
+                    this.showStatus('ready', '安定版AI準備完了');
                     
                 } catch (error) {
-                    console.error("ML AI初期化エラー:", error);
-                    this.showStatus('error', 'AI初期化に失敗しました');
+                    console.error("🚨 学習エラー:", error);
+                    this.showStatus('error', '学習失敗');
                 }
+            }
+
+            calculateTargets(batch) {
+                const targets = [];
+                
+                for (const experience of batch) {
+                    const target = new Array(180).fill(0);
+                    
+                    for (const action of experience.actions) {
+                        const actionIndex = action[0] * 15 + action[1];
+                        if (actionIndex < 180) {
+                            target[actionIndex] = experience.reward;
+                        }
+                    }
+                    
+                    targets.push(target);
+                }
+                
+                return targets;
+            }
+
+            sampleBatch() {
+                const batch = [];
+                for (let i = 0; i < Math.min(this.batchSize, this.memory.length); i++) {
+                    const randomIndex = Math.floor(Math.random() * this.memory.length);
+                    batch.push(this.memory[randomIndex]);
+                }
+                return batch;
             }
 
             async selectAction(gameState, currentPlayer, validMoves) {
@@ -642,11 +1285,13 @@
                 }
 
                 try {
-                    this.showThinking("戦略を分析中...");
+                    this.showThinking("AI戦略分析中...");
 
                     if (this.isTraining && Math.random() < this.epsilon) {
                         this.hideThinking();
-                        return this.fallbackAction(validMoves);
+                        const randomMove = this.fallbackAction(validMoves);
+                        console.log(`🎲 探索行動: (${randomMove[0]}, ${randomMove[1]}) ε=${(this.epsilon*100).toFixed(1)}%`);
+                        return randomMove;
                     }
 
                     const stateVector = this.encodeState(gameState, currentPlayer);
@@ -669,10 +1314,15 @@
                     qValues.dispose();
 
                     this.hideThinking();
+                    
+                    if (bestMove) {
+                        console.log(`🧠 学習行動: (${bestMove[0]}, ${bestMove[1]}) Q値=${bestQ.toFixed(3)}`);
+                    }
+                    
                     return bestMove || this.fallbackAction(validMoves);
 
                 } catch (error) {
-                    console.error("AI思考エラー:", error);
+                    console.error("思考エラー:", error);
                     this.hideThinking();
                     return this.fallbackAction(validMoves);
                 }
@@ -697,132 +1347,186 @@
                 return validMoves[Math.floor(Math.random() * validMoves.length)];
             }
 
-            storeExperience(state, action, reward) {
-                const experience = {
-                    state: this.encodeState(state, game.currentPlayer),
-                    action: action[0] * 15 + action[1],
-                    reward: reward
-                };
-
-                this.memory.push(experience);
-                if (this.memory.length > this.maxMemory) {
-                    this.memory.shift();
-                }
-            }
-
-            async trainModel() {
-                if (this.memory.length < this.batchSize || !this.isTraining) return;
-
+            updateUI() {
                 try {
-                    this.showStatus('training', '学習中...');
+                    // 安全なDOM操作
+                    const elements = {
+                        gamesCount: document.getElementById('gamesCount'),
+                        winRate: document.getElementById('winRate'),
+                        explorationRate: document.getElementById('explorationRate'),
+                        learningStage: document.getElementById('learningStage'),
+                        latestLoss: document.getElementById('latestLoss'),
+                        avgReward: document.getElementById('avgReward'),
+                        evolutionTrend: document.getElementById('evolutionTrend'),
+                        memoryCount: document.getElementById('memoryCount')
+                    };
                     
-                    const batch = this.sampleBatch();
-                    const states = batch.map(exp => exp.state);
-                    const targets = batch.map(exp => {
-                        const target = new Array(180).fill(0);
-                        target[exp.action] = exp.reward;
-                        return target;
-                    });
-
-                    const statesTensor = tf.tensor2d(states);
-                    const targetsTensor = tf.tensor2d(targets);
-
-                    await this.model.fit(statesTensor, targetsTensor, {
-                        epochs: 1,
-                        verbose: 0,
-                        batchSize: this.batchSize
-                    });
-
-                    statesTensor.dispose();
-                    targetsTensor.dispose();
-
-                    if (this.epsilon > this.epsilonMin) {
-                        this.epsilon *= this.epsilonDecay;
+                    if (elements.gamesCount) {
+                        elements.gamesCount.textContent = this.gamesPlayed;
+                    }
+                    
+                    if (elements.winRate) {
+                        elements.winRate.textContent = (this.winRate * 100).toFixed(1) + '%';
+                    }
+                    
+                    if (elements.explorationRate) {
+                        elements.explorationRate.textContent = (this.epsilon * 100).toFixed(1) + '%';
+                    }
+                    
+                    // 成長段階
+                    if (elements.learningStage) {
+                        let stage = '胎児';
+                        let stageColor = '#ef4444';
+                        if (this.gamesPlayed > 3) { stage = '幼児'; stageColor = '#f59e0b'; }
+                        if (this.gamesPlayed > 10) { stage = '学習期'; stageColor = '#10b981'; }
+                        if (this.gamesPlayed > 25) { stage = '成長期'; stageColor = '#3b82f6'; }
+                        if (this.gamesPlayed > 50) { stage = '熟練期'; stageColor = '#8b5cf6'; }
+                        if (this.gamesPlayed > 100) { stage = 'エキスパート'; stageColor = '#ec4899'; }
+                        
+                        elements.learningStage.textContent = stage;
+                        elements.learningStage.style.color = stageColor;
+                    }
+                    
+                    // 学習誤差
+                    if (elements.latestLoss && this.lossHistory.length > 0) {
+                        const latestLoss = this.lossHistory[this.lossHistory.length - 1];
+                        elements.latestLoss.textContent = latestLoss.toFixed(4);
+                    }
+                    
+                    // 平均報酬
+                    if (elements.avgReward && this.memory.length > 0) {
+                        const recentRewards = this.memory.slice(-10).map(exp => exp.reward);
+                        const avgReward = recentRewards.reduce((a, b) => a + b, 0) / recentRewards.length;
+                        elements.avgReward.textContent = avgReward.toFixed(3);
                     }
 
-                    this.showStatus('ready', 'LEVEL6 AI 準備完了');
+                    // 進化傾向
+                    this.updateEvolutionTrend(elements.evolutionTrend);
+                    
+                    // メモリ数
+                    if (elements.memoryCount) {
+                        elements.memoryCount.textContent = this.memory.length;
+                    }
                     
                 } catch (error) {
-                    console.error("学習エラー:", error);
+                    console.error("UI更新エラー:", error);
+                    // UI更新エラーでも続行
                 }
             }
 
-            sampleBatch() {
-                const batch = [];
-                for (let i = 0; i < Math.min(this.batchSize, this.memory.length); i++) {
-                    const randomIndex = Math.floor(Math.random() * this.memory.length);
-                    batch.push(this.memory[randomIndex]);
-                }
-                return batch;
-            }
-
-            async onGameEnd(result) {
-                this.gamesPlayed++;
+            updateEvolutionTrend(trendElement) {
+                if (!trendElement || this.winRateHistory.length < 5) return;
                 
-                if (result === 'win') {
-                    this.winRate = (this.winRate * (this.gamesPlayed - 1) + 1) / this.gamesPlayed;
-                } else {
-                    this.winRate = (this.winRate * (this.gamesPlayed - 1)) / this.gamesPlayed;
+                try {
+                    const recent = this.winRateHistory.slice(-5);
+                    const older = this.winRateHistory.slice(-10, -5);
+                    
+                    if (older.length === 0) return;
+                    
+                    const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+                    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+                    
+                    const diff = recentAvg - olderAvg;
+                    let trendText = '→';
+                    let trendColor = '#6b7280';
+                    
+                    if (diff > 0.2) {
+                        trendText = '🚀 爆成長';
+                        trendColor = '#10b981';
+                    } else if (diff > 0.1) {
+                        trendText = '📈 急成長';
+                        trendColor = '#10b981';
+                    } else if (diff > 0.05) {
+                        trendText = '↗️ 成長中';
+                        trendColor = '#3b82f6';
+                    } else if (diff < -0.1) {
+                        trendText = '↘️ 調整期';
+                        trendColor = '#f59e0b';
+                    } else {
+                        trendText = '→ 安定期';
+                        trendColor = '#8b5cf6';
+                    }
+                    
+                    trendElement.textContent = trendText;
+                    trendElement.style.color = trendColor;
+                } catch (error) {
+                    console.error("進化傾向更新エラー:", error);
                 }
-
-                if (this.gamesPlayed % this.trainingFreq === 0) {
-                    await this.trainModel();
-                }
-
-                this.updateUI();
-            }
-
-            updateUI() {
-                document.getElementById('gamesCount').textContent = this.gamesPlayed;
-                document.getElementById('winRate').textContent = (this.winRate * 100).toFixed(1) + '%';
-                document.getElementById('explorationRate').textContent = (this.epsilon * 100).toFixed(1) + '%';
-                
-                let stage = '初心者';
-                if (this.gamesPlayed > 20) stage = '学習中';
-                if (this.gamesPlayed > 50) stage = '熟練';
-                if (this.gamesPlayed > 100) stage = 'エキスパート';
-                
-                document.getElementById('learningStage').textContent = stage;
             }
 
             showStatus(type, message) {
-                const indicator = document.getElementById('mlIndicator');
-                const text = document.getElementById('mlStatusText');
-                
-                if (indicator) indicator.className = `ml-indicator ${type}`;
-                if (text) text.textContent = message;
+                try {
+                    const indicator = document.getElementById('mlIndicator');
+                    const text = document.getElementById('mlStatusText');
+                    
+                    if (indicator) indicator.className = `ml-indicator ${type}`;
+                    if (text) text.textContent = message;
+                } catch (error) {
+                    console.error("ステータス表示エラー:", error);
+                }
             }
 
             updateProgress(percent) {
-                const progress = document.getElementById('mlProgress');
-                if (progress) progress.style.width = percent + '%';
+                try {
+                    const progress = document.getElementById('mlProgress');
+                    if (progress) progress.style.width = percent + '%';
+                } catch (error) {
+                    console.error("プログレス更新エラー:", error);
+                }
             }
 
             showThinking(message) {
-                const modal = document.getElementById('aiThinkingModal');
-                const text = document.getElementById('thinkingText');
-                
-                if (text) text.textContent = message;
-                if (modal) modal.style.display = 'block';
+                try {
+                    const modal = document.getElementById('aiThinkingModal');
+                    const text = document.getElementById('thinkingText');
+                    
+                    if (text) text.textContent = message;
+                    if (modal) modal.style.display = 'block';
+                } catch (error) {
+                    console.error("思考表示エラー:", error);
+                }
             }
 
             hideThinking() {
-                const modal = document.getElementById('aiThinkingModal');
-                if (modal) modal.style.display = 'none';
+                try {
+                    const modal = document.getElementById('aiThinkingModal');
+                    if (modal) modal.style.display = 'none';
+                } catch (error) {
+                    console.error("思考非表示エラー:", error);
+                }
             }
 
             toggleTraining() {
                 this.isTraining = !this.isTraining;
-                console.log(`学習モード: ${this.isTraining ? 'ON' : 'OFF'}`);
+                console.log(`🎓 学習モード: ${this.isTraining ? 'ON' : 'OFF'}`);
             }
 
             reset() {
-                this.memory = [];
-                this.gamesPlayed = 0;
-                this.winRate = 0;
-                this.epsilon = 1.0;
-                this.updateUI();
-                console.log("LEVEL6 AI リセット完了");
+                try {
+                    this.memory = [];
+                    this.gameExperiences = [];
+                    this.gamesPlayed = 0;
+                    this.wins = 0;
+                    this.winRate = 0;
+                    this.epsilon = 1.0;
+                    this.lossHistory = [];
+                    this.winRateHistory = [];
+                    this.trainingCount = 0;
+                    
+                    if (this.model) {
+                        this.model.dispose();
+                    }
+                    this.createStableModel();
+                    
+                    localStorage.removeItem(this.statsKey);
+                    this.saveModel();
+                    this.saveStatistics();
+                    
+                    this.updateUI();
+                    console.log("🔄 安定版AI完全リセット完了");
+                } catch (error) {
+                    console.error("リセットエラー:", error);
+                }
             }
         }
 
@@ -838,6 +1542,25 @@
                 }
             }
         }
+        function resetGameState() {
+        clearInterval(game.timer);
+        clearWinningCells();
+        game.grid = [];
+        game.currentPlayer = 1;
+        game.firstPlayer = 1;
+        game.aiPlayer = null;
+        game.remainingBlocks = 1;
+        game.timeLeft = 30;
+        game.gameActive = false;
+        game.timer = null;
+        game.animating = false;
+        game.winningCells = [];
+        game.showingWin = false;
+        game.turnCount = 0;
+        game.isAI = false;
+        game.aiThinking = false;
+    }
+
 
         // 勝利ラインを表示する関数
         function showWinningCells() {
@@ -852,6 +1575,8 @@
 
         // ゲーム開始関数
         function startGame(isVsAI) {
+            GRID_WIDTH = 15;
+            GRID_HEIGHT = 12;
             if (typeof isVsAI === 'undefined') {
                 isVsAI = false;
             }
@@ -894,6 +1619,10 @@
             startTimer();
             
             if (game.isAI && game.currentPlayer === game.aiPlayer) {
+                   // 最初のターン表示
+                setTimeout(() => {
+                    showTurnChangeAnimation(game.currentPlayer);
+                }, 300);
                 console.log("AIが先攻で動作開始");
                 setTimeout(cpuPlay, 1500);
             }
@@ -911,8 +1640,8 @@
                     clearInterval(game.timer);
                     var winner = game.currentPlayer === 1 ? 2 : 1;
                     showAlert(`プレイヤー${game.currentPlayer}のタイムアウト！`);
-                    setTimeout(function() {
-                        endGame(winner);
+                    setTimeout(async function() {
+                        await endGame(winner);
                     }, 2000);
                 }
             }, 1000);
@@ -1866,8 +2595,8 @@
                         showWinningCells();
                         updateGrid();
                         
-                        setTimeout(function() {
-                            endGame(game.currentPlayer);
+                        setTimeout(async function() {
+                            await endGame(game.currentPlayer);
                         }, 3000);
                         return;
                     }
@@ -1890,6 +2619,9 @@
                             }
                             
                             console.log(`ターン交代 - プレイヤー${game.currentPlayer}, ターン${game.turnCount}`);
+                            
+                            // ターン交代アニメーション追加
+                            showTurnChangeAnimation(game.currentPlayer);
                             
                             startTimer();
                             updateDisplay();
@@ -1990,6 +2722,12 @@
             console.log(`AI動作開始 Lv${aiLevel} - 配置予定ブロック数:`, game.remainingBlocks);
             
             game.aiThinking = true;
+
+            // LEVEL6 AIのターン開始
+            if (aiLevel === 6 && level6AI && level6AI.isInitialized) {
+                level6AI.startGame(game, game.aiPlayer); 
+                level6AI.startTurn(game, game.aiPlayer);
+            }
             
             let placed = 0;
             const maxBlocks = game.remainingBlocks;
@@ -1997,6 +2735,12 @@
             async function placeOneBlock() {
                 if (placed >= maxBlocks || !game.gameActive || game.currentPlayer !== game.aiPlayer) {
                     console.log("AI配置完了");
+
+                    // LEVEL6 AIのターン終了（ゲーム継続中）
+                    if (aiLevel === 6 && level6AI && level6AI.isInitialized) {
+                        level6AI.endTurn(game, 'continue');
+                    }
+                    
                     game.aiThinking = false;
                     return;
                 }
@@ -2225,6 +2969,10 @@
 
                 if (chosenMove) {
                     console.log(`AI配置実行: (${chosenMove[0]}, ${chosenMove[1]})`);
+                    // LEVEL6 AIにアクションを記録
+                    if (aiLevel === 6 && level6AI && level6AI.isInitialized) {
+                        level6AI.recordAction(chosenMove, game, game.aiPlayer);
+                    }
                     placePiece(chosenMove[0], chosenMove[1], true);
                     placed++;
                     setTimeout(placeOneBlock, 600);
@@ -2308,6 +3056,52 @@
             return false;
         }
 
+        // ターン交代アニメーション表示
+        function showTurnChangeAnimation(newPlayer) {
+            // 既存の通知を削除
+            const existingNotification = document.querySelector('.turn-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
+            // プレイヤー要素にアニメーション追加
+            const playerElement = document.getElementById(`player${newPlayer}`);
+            if (playerElement) {
+                playerElement.classList.add('turn-change');
+                setTimeout(() => {
+                    playerElement.classList.remove('turn-change');
+                }, 1200);
+            }
+
+            // ターン交代通知作成
+            const notification = document.createElement('div');
+            notification.className = 'turn-notification';
+            
+            let playerName;
+            if (game.isAI && game.aiPlayer === newPlayer) {
+                playerName = `AI (Lv${aiLevel})のターン`;
+                notification.classList.add('ai-turn');
+            } else {
+                playerName = `プレイヤー${newPlayer}のターン`;
+            }
+            
+            notification.innerHTML = `
+                <div style="font-size: 16px; margin-bottom: 5px;">🔄 ターン交代</div>
+                <div style="font-size: 20px; font-weight: bold;">${playerName}</div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 1.5秒後に自動削除
+            setTimeout(() => {
+                if (notification && notification.parentNode) {
+                    notification.remove();
+                }
+            }, 1500);
+            
+            console.log(`ターン交代アニメーション表示: ${playerName}`);
+        }
+        
         // アラート表示
         function showAlert(message) {
             var existingAlert = document.querySelector('.alert');
@@ -2326,7 +3120,9 @@
         }
 
         // ゲーム終了
-        function endGame(winner) {
+      async function endGame(winner) {
+
+          
             console.log(`ゲーム終了処理開始 - 勝者: ${winner}`);
             
             game.gameActive = false;
@@ -2334,13 +3130,26 @@
             
             clearWinningCells();
             game.aiThinking = false;
-
+        
             // LEVEL6 AI学習処理
-            if (level6AI && aiLevel === 6) {
-                const result = winner === game.aiPlayer ? 'win' : 
-                              winner === 0 ? 'draw' : 'lose';
-                level6AI.onGameEnd(result);
+            if (level6AI && aiLevel === 6 && level6AI.isInitialized) {
+                let result = 'draw';
+                if (winner === game.aiPlayer) {
+                    result = 'win';
+                } else if (winner !== 0 && winner !== game.aiPlayer) {
+                    result = 'lose';
+                }
+                
+                // await使用可能
+                await level6AI.onGameEnd(result, game.aiPlayer);
+                
+                // メモリ数の更新
+                const memoryElement = document.getElementById('memoryCount');
+                if (memoryElement) {
+                    memoryElement.textContent = level6AI.memory.length;
+                }
             }
+
 
             var modal = document.getElementById('gameModal');
             var message = document.getElementById('modalMessage');
@@ -2366,14 +3175,21 @@
                 icon.style.background = '#9ca3af';
             }
 
-            message.textContent = 'ゲームが終了しました。再戦しますか？';
+            // AI進化メッセージ
+            if (game.isAI && aiLevel === 6 && level6AI) {
+                const evolutionMsg = getEvolutionMessage();
+                message.textContent = evolutionMsg + '\n\n再戦でAIをさらに成長させますか？';
+            } else {
+                message.textContent = 'ゲームが終了しました。再戦しますか？';
+            }
             modal.style.display = 'block';
             
             console.log("ゲーム終了モーダル表示完了");
         }
 
-        function endGameNow() {
-            endGame(0);
+        async function endGameNow() {
+            
+            await endGame(0);
         }
 
         // LEVEL6制御関数
@@ -2409,9 +3225,33 @@
         function exportMLData() {
             if (level6AI) {
                 const data = {
+                    // 基本統計
                     gamesPlayed: level6AI.gamesPlayed,
+                    wins: level6AI.wins,
                     winRate: level6AI.winRate,
-                    epsilon: level6AI.epsilon
+                    epsilon: level6AI.epsilon,
+                    
+                    // 学習履歴
+                    lossHistory: level6AI.lossHistory,
+                    winRateHistory: level6AI.winRateHistory,
+                    rewardHistory: level6AI.rewardHistory,
+                    
+                    // メタデータ
+                    memorySize: level6AI.memory.length,
+                    maxMemory: level6AI.maxMemory,
+                    batchSize: level6AI.batchSize,
+                    exportTime: new Date().toISOString(),
+                    
+                    // 詳細学習データ（最新100件のみ）
+                    recentMemory: level6AI.memory.slice(-100),
+                    
+                    // 成長段階
+                    stage: level6AI.gamesPlayed > 200 ? 'マスター' :
+                           level6AI.gamesPlayed > 100 ? 'エキスパート' :
+                           level6AI.gamesPlayed > 60 ? '熟練' :
+                           level6AI.gamesPlayed > 30 ? '成長期' :
+                           level6AI.gamesPlayed > 15 ? '学習中' :
+                           level6AI.gamesPlayed > 5 ? '幼児' : '誕生'
                 };
                 
                 const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -2421,22 +3261,156 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'level6_ai_data.json';
+                a.download = `level6_ai_data_${level6AI.gamesPlayed}games_${data.stage}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
+                
+                console.log(`AIデータエクスポート完了: ${level6AI.gamesPlayed}戦, 勝率${(level6AI.winRate*100).toFixed(1)}%`);
             }
         }
 
-        // ★★★ グローバル関数として即座に露出 ★★★
-        window.startGame = startGame;
-        window.onAILevelChange = onAILevelChange;
-        window.toggleMLTraining = toggleMLTraining;
-        window.resetMLAI = resetMLAI;
-        window.exportMLData = exportMLData;
-        window.showStart = showStart;
-        window.endGameNow = endGameNow;
+window.startGame = startGame;
+window.onAILevelChange = onAILevelChange;
+window.toggleMLTraining = toggleMLTraining;
+window.resetMLAI = resetMLAI;
+window.exportMLData = exportMLData;
+window.showLearningGraph = showLearningGraph;
+window.saveMLManually = saveMLManually;
+window.showStart = showStart;
+window.endGameNow = endGameNow;
+        function getEvolutionMessage() {
+            if (!level6AI) return 'ゲームが終了しました。';
+            
+            const games = level6AI.gamesPlayed;
+            const winRate = level6AI.winRate;
+            
+            if (games <= 5) {
+                return `🍼 AIは${games}回目の体験でした。まだ学習を始めたばかりです。`;
+            } else if (games <= 15) {
+                return `👶 AIは${games}戦の経験を積みました。基本を覚え始めています。`;
+            } else if (games <= 30) {
+                return `🧒 AIは${games}戦で勝率${(winRate*100).toFixed(1)}%です。戦略を学習中です。`;
+            } else if (games <= 60) {
+                return `🧑‍🎓 AIは${games}戦で勝率${(winRate*100).toFixed(1)}%を達成。かなり成長しました！`;
+            } else if (games <= 100) {
+                return `🏆 AIは${games}戦の豊富な経験で勝率${(winRate*100).toFixed(1)}%。熟練の域です！`;
+            } else {
+                return `🎯 AIは${games}戦のマスタークラス、勝率${(winRate*100).toFixed(1)}%。あなたの最強の対戦相手です！`;
+            }
+        }
 
-        console.log("✅ グローバル関数露出完了 - ゲーム準備完了");
+        function showLearningGraph() {
+            if (!level6AI || level6AI.winRateHistory.length < 5) {
+                alert('学習データが不足しています。5戦以上プレイしてください。');
+                return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 300;
+            canvas.style.border = '1px solid #ddd';
+            canvas.style.borderRadius = '5px';
+            
+            const ctx = canvas.getContext('2d');
+            
+            // 背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 400, 300);
+            
+            // 勝率グラフ
+            const winRates = level6AI.winRateHistory.slice(-50); // 最新50件
+            const maxY = 280;
+            const minY = 20;
+            const maxX = 380;
+            const minX = 20;
+            
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            for (let i = 0; i < winRates.length; i++) {
+                const x = minX + (i / (winRates.length - 1)) * (maxX - minX);
+                const y = maxY - (winRates[i] * (maxY - minY));
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // 軸とラベル
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            
+            // Y軸
+            ctx.beginPath();
+            ctx.moveTo(minX, minY);
+            ctx.lineTo(minX, maxY);
+            ctx.stroke();
+            
+            // X軸
+            ctx.beginPath();
+            ctx.moveTo(minX, maxY);
+            ctx.lineTo(maxX, maxY);
+            ctx.stroke();
+            
+            // ラベル
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.fillText('勝率', 5, 15);
+            ctx.fillText('0%', 5, maxY);
+            ctx.fillText('100%', 5, minY + 15);
+            ctx.fillText('対戦履歴（最新50戦）', 150, 295);
+            
+            // モーダル表示
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white; padding: 20px; border-radius: 10px;
+                text-align: center; max-width: 90%;
+            `;
+            
+            const title = document.createElement('h3');
+            title.textContent = 'LEVEL6 AI 学習進化グラフ';
+            title.style.margin = '0 0 15px 0';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '閉じる';
+            closeBtn.style.cssText = `
+                margin-top: 15px; padding: 8px 16px; background: #3b82f6;
+                color: white; border: none; border-radius: 5px; cursor: pointer;
+            `;
+            closeBtn.onclick = () => document.body.removeChild(modal);
+            
+            content.appendChild(title);
+            content.appendChild(canvas);
+            content.appendChild(closeBtn);
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+
+        async function saveMLManually() {
+            if (level6AI && level6AI.isInitialized) {
+                try {
+                    await level6AI.saveModel();
+                    level6AI.saveStatistics();
+                    alert('AIデータを手動保存しました！');
+                } catch (error) {
+                    alert('保存に失敗しました: ' + error.message);
+                }
+            } else {
+                alert('AIが初期化されていません。');
+            }
+        }
+
 
     </script>
 </body>
