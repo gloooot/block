@@ -22,11 +22,10 @@
         .card {
             background: white;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 12px; /* 20px → 12px に削減 */
+            margin-bottom: 15px; /* 20px → 15px に削減 */
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
         .start-screen {
             text-align: center;
             padding: 40px;
@@ -147,17 +146,19 @@
 
        .grid {
             display: inline-grid;
-            grid-template-columns: repeat(15, 32px);
+            grid-template-columns: repeat(15, 48px); /* 32px → 48px に拡大 */
             gap: 2px;
             background: #ddd;
-            padding: 10px;
+            padding: 8px; /* 10px → 8px に削減 */
             border-radius: 8px;
             min-width: max-content;
+            border: 3px solid transparent; /* ネオン演出用 */
+            transition: border-color 0.5s ease, box-shadow 0.5s ease;
         }
 
         .cell {
-            width: 32px;
-            height: 32px;
+            width: 48px; /* 32px → 48px に拡大 */
+            height: 48px; /* 32px → 48px に拡大 */
             background: white;
             border: 3px solid transparent;
             box-sizing: border-box;
@@ -165,7 +166,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 24px; /* 18px → 24px に拡大 */
             transition: all 0.3s;
         }
 
@@ -185,10 +186,22 @@
             border-color: #dc2626;
         }
 
+        .cell.red::before {
+            content: '●';
+            font-size: 16px;
+            font-weight: bold;
+        }
+
         .cell.blue {
             background: #3b82f6;
             color: white;
             border-color: #2563eb;
+        }
+
+        .cell.blue::before {
+            content: '●';
+            font-size: 16px;
+            font-weight: bold;
         }
 
         .cell.winning {
@@ -252,6 +265,85 @@
             animation: alertShow 0.3s ease-out;
         }
 
+        .game-main {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .game-field {
+            flex: 1;
+            text-align: center;
+        }
+
+        .game-sidebar {
+            width: 200px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .timer-display {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .timer-display .timer {
+            font-size: 36px; /* 24px → 36px に拡大 */
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .current-player-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .player-color-large {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .blocks-info {
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .blocks-remaining {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b5cf6;
+        }
+        
+
         @keyframes blink {
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0.5; }
@@ -290,230 +382,108 @@
             100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
 
-        /* ターン交代アニメーション */
-        @keyframes turnChange {
-            0% { 
-                transform: scale(1);
-                background-color: transparent;
-            }
-            25% { 
-                transform: scale(1.1);
-                background-color: rgba(251, 191, 36, 0.3);
-                border-radius: 8px;
-            }
-            50% { 
-                transform: scale(1.15);
-                background-color: rgba(251, 191, 36, 0.5);
-            }
-            75% { 
-                transform: scale(1.1);
-                background-color: rgba(251, 191, 36, 0.3);
-            }
-            100% { 
-                transform: scale(1);
-                background-color: transparent;
-            }
-        }
-
-        @keyframes turnNotification {
-            0% { 
-                opacity: 0;
-                transform: translateY(-20px) scale(0.8);
-            }
-            20% { 
-                opacity: 1;
-                transform: translateY(0) scale(1.1);
-            }
-            80% { 
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-            100% { 
-                opacity: 0;
-                transform: translateY(-10px) scale(0.9);
-            }
-        }
-
-        .player.turn-change {
-            animation: turnChange 1.2s ease-out;
-        }
-
-        .turn-notification {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
-            font-weight: bold;
-            font-size: 18px;
-            z-index: 1500;
-            animation: turnNotification 1.5s ease-out;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            text-align: center;
-            min-width: 200px;
-        }
-
-        .turn-notification.ai-turn {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        /* プレイヤー名のフラッシュ効果強化 */
-        .player.flash {
-            animation: turnFlash 1s ease-out;
-            position: relative;
-        }
-
-        @keyframes turnFlash {
-            0% { 
-                transform: scale(1); 
-                color: inherit;
-                text-shadow: none;
-            }
-            25% { 
-                transform: scale(1.2); 
-                color: #fbbf24;
-                text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
-            }
-            50% { 
-                transform: scale(1.1); 
-                color: #f59e0b;
-                text-shadow: 0 0 15px rgba(245, 158, 11, 0.9);
-            }
-            75% { 
-                transform: scale(1.15); 
-                color: #fbbf24;
-                text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
-            }
-            100% { 
-                transform: scale(1); 
-                color: inherit;
-                text-shadow: none;
-            }
-        }
+       
         
         /* タブレット対応 */
         @media (max-width: 768px) {
-            .grid-container {
-                padding: 15px 10px;
-            }
-            
-            .grid {
-                grid-template-columns: repeat(15, 24px);
-                gap: 1px;
-                padding: 8px;
-            }
-            
-            .cell {
-                width: 24px;
-                height: 24px;
-                font-size: 14px;
-            }
-            
-            .game-status {
+            .game-main {
                 flex-direction: column;
                 gap: 15px;
             }
             
-            .players {
-                gap: 20px;
+            .game-sidebar {
+                width: 100%;
+                display: flex;
+                justify-content: space-around;
+                padding: 10px;
+            }
+            
+            .sidebar-section {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+                text-align: center;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(15, 28px);
+            }
+            
+            .cell {
+                width: 28px;
+                height: 28px;
+                font-size: 18px;
+            }
+            
+            .cell.red::before,
+            .cell.blue::before {
+                font-size: 12px;
             }
         }
 
         /* スマホ対応 */
         @media (max-width: 600px) {
-            .grid-container {
-                padding: 10px 5px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 8px;
+                margin-bottom: 10px;
             }
             
             .grid {
-                grid-template-columns: repeat(15, 18px);
+                grid-template-columns: repeat(15, 20px);
                 gap: 1px;
                 padding: 6px;
-                margin: 0 auto;
             }
             
             .cell {
-                width: 18px;
-                height: 18px;
-                font-size: 11px;
+                width: 20px;
+                height: 20px;
+                font-size: 14px;
                 border-width: 2px;
             }
             
-            .game-status {
-                flex-direction: column;
-                gap: 10px;
+            .cell.red::before,
+            .cell.blue::before {
+                font-size: 10px;
             }
             
-            .players {
-                gap: 15px;
-                justify-content: center;
+            .timer-display .timer {
+                font-size: 28px;
             }
             
-            .game-info {
-                flex-direction: column;
-                gap: 5px;
-                text-align: center;
-            }
-            
-            .btn {
-                padding: 12px 20px;
+            .current-player-display {
                 font-size: 16px;
+            }
+            
+            .blocks-remaining {
+                font-size: 20px;
             }
         }
 
         /* 小さいスマホ対応 */
         @media (max-width: 480px) {
-            .container {
-                padding: 10px;
-            }
-            
-            .grid-container {
-                padding: 8px 2px;
-            }
-            
             .grid {
                 grid-template-columns: repeat(15, 16px);
                 gap: 1px;
                 padding: 4px;
-                font-size: 10px;
             }
             
             .cell {
                 width: 16px;
                 height: 16px;
-                font-size: 10px;
+                font-size: 12px;
                 border-width: 1px;
             }
             
-            .game-header {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
-            
-            .game-header h2 {
-                font-size: 1.5em;
-                margin: 0;
-            }
-            
-            .players {
-                flex-direction: row;
-                gap: 10px;
-            }
-            
-            .player {
-                font-size: 14px;
-            }
-            
-            .timer {
-                font-size: 20px;
+            .cell.red::before,
+            .cell.blue::before {
+                font-size: 8px;
             }
         }
+        
 
         
 
@@ -634,6 +604,62 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* フィールド枠ネオン演出 */
+        .grid.player1-turn {
+            border-color: #ef4444;
+            box-shadow: 
+                0 0 10px #ef4444,
+                0 0 20px #ef4444,
+                0 0 30px #ef4444,
+                inset 0 0 10px rgba(239, 68, 68, 0.1);
+            animation: redNeonPulse 2s ease-in-out;
+        }
+
+        .grid.player2-turn {
+            border-color: #3b82f6;
+            box-shadow: 
+                0 0 10px #3b82f6,
+                0 0 20px #3b82f6,
+                0 0 30px #3b82f6,
+                inset 0 0 10px rgba(59, 130, 246, 0.1);
+            animation: blueNeonPulse 2s ease-in-out;
+        }
+
+        @keyframes redNeonPulse {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 5px #ef4444,
+                    0 0 10px #ef4444,
+                    0 0 15px #ef4444,
+                    inset 0 0 5px rgba(239, 68, 68, 0.1);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 15px #ef4444,
+                    0 0 25px #ef4444,
+                    0 0 35px #ef4444,
+                    inset 0 0 15px rgba(239, 68, 68, 0.2);
+            }
+        }
+
+        @keyframes blueNeonPulse {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 5px #3b82f6,
+                    0 0 10px #3b82f6,
+                    0 0 15px #3b82f6,
+                    inset 0 0 5px rgba(59, 130, 246, 0.1);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 15px #3b82f6,
+                    0 0 25px #3b82f6,
+                    0 0 35px #3b82f6,
+                    inset 0 0 15px rgba(59, 130, 246, 0.2);
+            }
+        }
+        
     </style>
 </head>
 <body>
@@ -733,45 +759,65 @@
         </div>
 
         <!-- ゲーム画面 -->
-        <div id="gameScreen" class="game-screen">
-            <!-- ヘッダー -->
-            <div class="card">
-                <div class="game-header">
-                    <h2>ドロップファイブ</h2>
-                    <div>
-                        <button class="btn" onclick="showStart()">新しいゲーム</button>
-                        <button class="btn" onclick="endGameNow()" style="background: #dc2626; margin-left: 10px;">ゲーム終了</button>
+            <div id="gameScreen" class="game-screen">
+                <!-- ヘッダー -->
+                <div class="card">
+                    <div class="game-header">
+                        <h2>ドロップファイブ</h2>
+                        <div>
+                            <button class="btn" onclick="showStart()">新しいゲーム</button>
+                            <button class="btn" onclick="endGameNow()" style="background: #dc2626; margin-left: 10px;">ゲーム終了</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- ゲーム状況 -->
-            <div class="card">
-                <div class="game-status">
-                    <div class="players">
-                        <div class="player" id="player1">
-                            <div class="player-color red"></div>
-                            <span>プレイヤー1</span>
-                        </div>
-                        <div class="player" id="player2">
-                            <div class="player-color blue"></div>
-                            <span>プレイヤー2</span>
-                        </div>
-                    </div>
+                <!-- タイマー表示 -->
+                <div class="timer-display">
                     <div class="timer" id="timer">5:00</div>
                 </div>
-                <div class="game-info">
-                    <div>現在のターン: <span id="currentPlayer">プレイヤー1</span></div>
-                    <div>残りブロック: <span id="remainingBlocks">1</span>/<span id="maxBlocks">1</span></div>
+
+                <!-- メインゲームエリア -->
+                <div class="card">
+                    <div class="game-main">
+                        <!-- ゲームフィールド -->
+                        <div class="game-field">
+                            <div class="grid" id="gameGrid"></div>
+                            <div class="ground-label">⬆️ 地面レベル（隣接ブロック必要）</div>
+                        </div>
+
+                        <!-- サイドバー -->
+                        <div class="game-sidebar">
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">現在のターン</div>
+                                <div class="current-player-display">
+                                    <div class="player-color-large red" id="currentPlayerColor"></div>
+                                    <span id="currentPlayer">プレイヤー1</span>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">残りブロック</div>
+                                <div class="blocks-info">
+                                    <div class="blocks-remaining" id="remainingBlocks">1</div>
+                                    <div>/ <span id="maxBlocks">1</span></div>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">プレイヤー</div>
+                                <div class="player" id="player1">
+                                    <div class="player-color red"></div>
+                                    <span>プレイヤー1</span>
+                                </div>
+                                <div class="player" id="player2" style="margin-top: 8px;">
+                                    <div class="player-color blue"></div>
+                                    <span>プレイヤー2</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <!-- ゲームボード -->
-            <div class="card grid-container">
-                <div class="grid" id="gameGrid"></div>
-                <div class="ground-label">⬆️ 地面レベル（隣接ブロック必要）</div>
-            </div>
-        </div>
 
         <!-- ゲーム終了モーダル -->
         <div id="gameModal" class="modal">
@@ -1732,7 +1778,7 @@
         }
 
         // グリッド表示更新
-        function updateGrid() {
+function updateGrid() {
             var cells = document.querySelectorAll('.cell');
             var index = 0;
             
@@ -1748,20 +1794,20 @@
                         cell.classList.add('ground');
                     }
                     
+                    // ::beforeを使用するのでtextContentは空に
+                    cell.textContent = '';
+                    
                     if (value === 1) {
                         cell.classList.add('red');
-                        cell.textContent = '●';
                     } else if (value === 2) {
                         cell.classList.add('blue');
-                        cell.textContent = '●';
-                    } else {
-                        cell.textContent = '';
                     }
                     
                     index++;
                 }
             }
             
+            // 勝利ライン表示
             if (game.showingWin && game.winningCells.length > 0) {
                 for (var w = 0; w < game.winningCells.length; w++) {
                     var r = game.winningCells[w][0];
@@ -1771,6 +1817,12 @@
                         cells[idx].classList.add('winning');
                     }
                 }
+            }
+            
+            // 現在プレイヤー色更新
+            var currentPlayerColor = document.getElementById('currentPlayerColor');
+            if (currentPlayerColor) {
+                currentPlayerColor.className = `player-color-large ${game.currentPlayer === 1 ? 'red' : 'blue'}`;
             }
         }
 
@@ -2706,12 +2758,33 @@
             console.log(`上拡張完了 - 新サイズ: ${GRID_WIDTH}x${GRID_HEIGHT}`);
         }
 
-        function updateGridTemplate() {
+      function updateGridTemplate() {
             var gridElement = document.getElementById('gameGrid');
             if (gridElement) {
-                gridElement.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 32px)`;
+                var screenWidth = window.innerWidth;
+                var cellSize;
+                
+                if (screenWidth <= 480) {
+                    cellSize = '16px';  // 小さいスマホ
+                } else if (screenWidth <= 600) {
+                    cellSize = '20px';  // スマホ
+                } else if (screenWidth <= 768) {
+                    cellSize = '28px';  // タブレット
+                } else {
+                    cellSize = '48px';  // PC（拡大）
+                }
+                
+                gridElement.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, ${cellSize})`;
+                console.log(`グリッド更新: ${GRID_WIDTH}列 × ${cellSize} (画面幅: ${screenWidth}px)`);
             }
         }
+
+        // 画面リサイズ時の対応も追加
+        window.addEventListener('resize', function() {
+            if (document.getElementById('gameGrid')) {
+                updateGridTemplate();
+            }
+        });
 
         async function cpuPlay() {
             if (!game.gameActive || game.currentPlayer !== game.aiPlayer || !game.isAI || game.showingWin) {
@@ -3057,49 +3130,25 @@
         }
 
         // ターン交代アニメーション表示
+        // 新しいターン交代アニメーション表示（フィールド枠ネオン）
         function showTurnChangeAnimation(newPlayer) {
-            // 既存の通知を削除
-            const existingNotification = document.querySelector('.turn-notification');
-            if (existingNotification) {
-                existingNotification.remove();
-            }
-
-            // プレイヤー要素にアニメーション追加
-            const playerElement = document.getElementById(`player${newPlayer}`);
-            if (playerElement) {
-                playerElement.classList.add('turn-change');
-                setTimeout(() => {
-                    playerElement.classList.remove('turn-change');
-                }, 1200);
-            }
-
-            // ターン交代通知作成
-            const notification = document.createElement('div');
-            notification.className = 'turn-notification';
+            const gridElement = document.getElementById('gameGrid');
+            if (!gridElement) return;
             
-            let playerName;
-            if (game.isAI && game.aiPlayer === newPlayer) {
-                playerName = `AI (Lv${aiLevel})のターン`;
-                notification.classList.add('ai-turn');
-            } else {
-                playerName = `プレイヤー${newPlayer}のターン`;
-            }
+            // 既存のターンクラスを削除
+            gridElement.classList.remove('player1-turn', 'player2-turn');
             
-            notification.innerHTML = `
-                <div style="font-size: 16px; margin-bottom: 5px;">🔄 ターン交代</div>
-                <div style="font-size: 20px; font-weight: bold;">${playerName}</div>
-            `;
+            // 新しいプレイヤーのターンクラスを追加
+            const turnClass = `player${newPlayer}-turn`;
+            gridElement.classList.add(turnClass);
             
-            document.body.appendChild(notification);
+            // 2秒後にクラスを削除（アニメーション終了）
+            //以下コメントアウトします
+            //setTimeout(() => {
+            //    gridElement.classList.remove(turnClass);
+            //}, 2000);
             
-            // 1.5秒後に自動削除
-            setTimeout(() => {
-                if (notification && notification.parentNode) {
-                    notification.remove();
-                }
-            }, 1500);
-            
-            console.log(`ターン交代アニメーション表示: ${playerName}`);
+            console.log(`フィールド枠ネオン演出: プレイヤー${newPlayer}`);
         }
         
         // アラート表示
