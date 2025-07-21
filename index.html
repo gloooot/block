@@ -442,27 +442,40 @@
     }
 }
 
-        /* 小さいスマホ対応 */
-        @media (max-width: 480px) {
-            .grid {
-                grid-template-columns: repeat(15, 16px);
-                gap: 0.5px;
-                padding: 0.5px;
-            }
-            
-            .cell {
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
-                border-width: 0.5px;
-            }
-            
-            .cell.red::before,
-            .cell.blue::before {
-                font-size: 8px;
-            }
-           
+           /* 小さいスマホ対応 */
+    @media (max-width: 480px) {
+        .grid {
+            grid-template-columns: repeat(15, 20px);  /* ←20pxに統一 */
+            gap: 1px;         /* ←少し大きく */
+            padding: 2px;     /* ←少し大きく */
         }
+        
+        .cell {
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            border-width: 1px;  /* ←1pxに戻す（0.5pxは見えにくい） */
+        }
+        
+        .cell.red::before,
+        .cell.blue::before {
+            font-size: 8px;
+        }
+        
+        .game-status-bar {
+            padding: 8px;
+            gap: 10px;
+        }
+        
+        .status-section .timer {
+            font-size: 22px;
+        }
+        
+        .player-compact {
+            font-size: 13px;
+            gap: 5px;
+        }
+    }
         
 
         
