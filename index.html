@@ -426,7 +426,7 @@
     }
     .game-main {
         flex-direction: column;
-        gap: 15px;
+        gap: 0px;
     }
     .game-sidebar {
         width: 100%;
@@ -446,8 +446,8 @@
         @media (max-width: 480px) {
             .grid {
                 grid-template-columns: repeat(15, 16px);
-                gap: 0.5px;
-                padding: 0.5px;
+                gap: 0px;
+                padding: 0px;
             }
             
             .cell {
@@ -874,7 +874,6 @@
   <!-- ゲームボード -->
   <div class="card grid-container">
     <div class="grid" id="gameGrid"></div>
-    <div class="ground-label">⬆️ 地面レベル（隣接ブロック必要）</div>
   </div>
 
 </div>
